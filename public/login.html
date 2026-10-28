@@ -3,36 +3,151 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Entrar — Controlo de Projectos</title>
+<title>Entrar — Controlo de Projectos · Adicional Logistics</title>
 <script>try { const t = localStorage.getItem('tema') || 'sistema'; document.documentElement.dataset.theme = t === 'sistema' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t; } catch {}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <style>
-  body{display:grid;place-items:center;min-height:100vh;padding:16px}
-  .login{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-3);padding:32px 30px 28px}
-  .login .brand{padding:0 0 22px}
-  .login h1{font-size:18px;margin:0 0 4px;letter-spacing:-.01em}
-  .login p{margin:0 0 20px;color:var(--text-3);font-size:13px}
-  .login form{display:flex;flex-direction:column;gap:14px}
-  .login .btn{height:38px;margin-top:4px}
-  .erro{display:none;background:var(--red-soft);border:1px solid var(--red-line);color:var(--red);border-radius:8px;padding:9px 12px;font-size:13px}
-  .rod{margin-top:18px;text-align:center;color:var(--text-3);font-size:12px}
+  :root{ --a1:#1d9bd7; --a2:#22b39a; --a3:#7cc242; }
+  body{margin:0;min-height:100vh;background:var(--bg);overflow-x:hidden}
+  .wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);min-height:100vh}
+
+  /* ---------- painel de marca ---------- */
+  .hero{position:relative;overflow:hidden;background:#0c0f14;color:#e9edf2;padding:44px 56px;display:flex;flex-direction:column;justify-content:space-between;isolation:isolate}
+  .hero::before{content:"";position:absolute;inset:0;z-index:-2;
+    background:radial-gradient(900px 520px at 12% 0%,rgba(29,155,215,.28),transparent 60%),
+               radial-gradient(700px 520px at 100% 100%,rgba(124,194,66,.20),transparent 60%),
+               radial-gradient(600px 400px at 70% 35%,rgba(34,179,154,.14),transparent 65%)}
+  .hero::after{content:"";position:absolute;inset:0;z-index:-1;opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
+    background-size:44px 44px;mask-image:radial-gradient(ellipse at 40% 40%,#000 30%,transparent 75%)}
+  .h-top{display:flex;align-items:center;gap:12px}
+  .h-mark{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--a1),var(--a2) 55%,var(--a3));box-shadow:0 8px 24px -6px rgba(34,179,154,.55)}
+  .h-mark svg{width:20px;height:20px;stroke:#fff}
+  .h-top b{font-size:15px;letter-spacing:-.01em;display:block;line-height:1.15}
+  .h-top span{font-size:12px;color:#8f9aa7}
+  .h-meio{max-width:520px}
+  .h-meio h2{font-size:clamp(28px,3.2vw,40px);line-height:1.1;letter-spacing:-.03em;margin:0 0 14px;font-weight:800}
+  .h-meio h2 em{font-style:normal;background:linear-gradient(90deg,#5cc8f2,#4fd6bd 50%,#a7dd6f);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .h-meio p{color:#a7b1bd;font-size:15px;line-height:1.6;margin:0 0 26px;max-width:460px}
+  .pontos{display:grid;gap:12px}
+  .ponto{display:flex;gap:12px;align-items:flex-start}
+  .ponto i{flex:none;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+  .ponto i svg{width:16px;height:16px;stroke:#7fd3c3}
+  .ponto b{display:block;font-size:13.5px;font-weight:600;color:#e9edf2}
+  .ponto span{font-size:12.5px;color:#8f9aa7}
+  .mapa{position:absolute;right:-70px;top:50%;transform:translateY(-50%);width:min(40%,400px);opacity:.9;z-index:-1;pointer-events:none}
+  .mapa .rota{fill:none;stroke:url(#gr);stroke-width:2;stroke-linecap:round;stroke-dasharray:4 7;opacity:.75}
+  .mapa .no{fill:#0c0f14;stroke:#4fd6bd;stroke-width:2}
+  .mapa .no.p{fill:#4fd6bd}
+  .mapa .halo{fill:#4fd6bd;opacity:.18;transform-origin:center;animation:pulso 2.6s ease-out infinite}
+  .camiao{offset-path:path("M60 420 C 120 360, 150 330, 210 300 S 300 220, 330 170 S 300 80, 250 40");animation:viagem 9s linear infinite}
+  @keyframes viagem{from{offset-distance:0%}to{offset-distance:100%}}
+  @keyframes pulso{0%{transform:scale(.6);opacity:.35}100%{transform:scale(2.4);opacity:0}}
+  .h-rod{font-size:12px;color:#6f7a87;display:flex;flex-wrap:wrap;gap:4px 10px}
+  .h-rod span::after{content:"·";margin-left:10px;color:#3c4652}
+  .h-rod span:last-child::after{content:""}
+
+  /* ---------- formulário ---------- */
+  .lado{position:relative;display:grid;place-items:center;padding:40px 24px}
+  .tema{position:absolute;top:18px;right:18px}
+  .cartao{width:min(380px,100%)}
+  .cartao h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px}
+  .cartao .sub{color:var(--text-3);font-size:14px;margin:0 0 28px}
+  form{display:flex;flex-direction:column;gap:16px}
+  .campo{display:flex;flex-direction:column;gap:6px}
+  .campo>span{font-size:12.5px;font-weight:600;color:var(--text-2)}
+  .ctrl{position:relative}
+  .ctrl>svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--text-3);pointer-events:none}
+  .ctrl .input{height:44px;padding-left:40px;font-size:14.5px;border-radius:9px}
+  .ctrl .input.com-olho{padding-right:44px}
+  .olho{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;background:transparent;border-radius:7px;display:grid;place-items:center;color:var(--text-3);cursor:pointer}
+  .olho:hover{background:var(--hover);color:var(--text)}
+  .olho svg{width:17px;height:17px}
+  .caps{display:none;font-size:12px;color:var(--amber);align-items:center;gap:6px}
+  .caps svg{width:14px;height:14px}
+  .entrar{height:46px;border-radius:9px;font-size:14.5px;font-weight:600;margin-top:6px;gap:10px;background:linear-gradient(135deg,#1688c2,#1aa58e);border:0;color:#fff;box-shadow:0 10px 24px -10px rgba(26,165,142,.65)}
+  .entrar:hover{filter:brightness(1.06);background:linear-gradient(135deg,#1688c2,#1aa58e)}
+  .entrar:disabled{opacity:.75}
+  .spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:gira .7s linear infinite;display:none}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  .erro{display:none;align-items:flex-start;gap:9px;background:var(--red-soft);border:1px solid var(--red-line);color:var(--red);border-radius:9px;padding:10px 12px;font-size:13px}
+  .erro svg{width:16px;height:16px;flex:none;margin-top:1px}
+  .ajuda{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-2);color:var(--text-3);font-size:12.5px;display:flex;gap:8px;align-items:flex-start}
+  .ajuda svg{width:15px;height:15px;flex:none;margin-top:1px}
+  .seg-rod{margin-top:26px;color:var(--text-3);font-size:11.5px;text-align:center}
+  .shake{animation:abana .35s}
+  @keyframes abana{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+  @media (max-width:920px){
+    .wrap{grid-template-columns:minmax(0,1fr)}
+    .hero{padding:24px 22px 26px;min-height:auto}
+    .h-meio p,.pontos,.mapa,.h-rod{display:none}
+    .h-meio h2{font-size:22px;margin:18px 0 0}
+    .lado{padding:28px 20px 40px;align-items:start;justify-items:stretch}
+    .cartao{width:100%;max-width:420px;margin:0 auto}
+    .tema{top:auto;bottom:16px;right:16px}
+  }
+  @media (prefers-reduced-motion:reduce){.camiao,.mapa .halo{animation:none}}
 </style>
 </head>
 <body>
-  <main class="login">
-    <div class="brand"><div class="brand-mark"><svg class="i" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div><div><b>Distribuição</b><span>Controlo de Projectos</span></div></div>
-    <h1>Iniciar sessão</h1>
-    <p>Adicional Logistics</p>
-    <form id="f">
-      <div class="erro" id="erro"></div>
-      <label class="field"><span>Utilizador ou email</span><input class="input" name="utilizador" autocomplete="username" required autofocus></label>
-      <label class="field"><span>Palavra-passe</span><input class="input" name="senha" type="password" autocomplete="current-password" required></label>
-      <button class="btn btn-primary" type="submit">Entrar</button>
-    </form>
-    <div class="rod">Esqueceu a palavra-passe? Peça ao superadmin para a repor.</div>
+<div class="wrap">
+  <aside class="hero" aria-hidden="true">
+    <div class="h-top">
+      <div class="h-mark"><svg class="i" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div>
+      <div><b>Adicional Logistics</b><span>Controlo de Projectos</span></div>
+    </div>
+
+    <div class="h-meio">
+      <h2>Cada camião, cada destino,<br><em>cada metical</em> sob controlo.</h2>
+      <p>Planeie as entregas, acompanhe os camiões subcontratados e saiba em cada momento quanto gastou e qual é a margem de cada projecto.</p>
+      <div class="pontos">
+        <div class="ponto"><i><svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg></i><div><b>Planeamento por dia</b><span>Destinos, camiões, cargas e guias de carga</span></div></div>
+        <div class="ponto"><i><svg class="i" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></i><div><b>Orçamento, gasto e margem</b><span>Por projecto e no mapa de todos os projectos</span></div></div>
+        <div class="ponto"><i><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></i><div><b>Tudo registado</b><span>Notas de débito, exportações e auditoria completa</span></div></div>
+      </div>
+    </div>
+
+    <svg class="mapa" viewBox="0 0 400 460">
+      <defs><linearGradient id="gr" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#1d9bd7"/><stop offset=".5" stop-color="#22b39a"/><stop offset="1" stop-color="#7cc242"/></linearGradient></defs>
+      <path class="rota" d="M60 420 C 120 360, 150 330, 210 300 S 300 220, 330 170 S 300 80, 250 40"/>
+      <path class="rota" d="M210 300 C 170 250, 120 230, 90 180"/>
+      <path class="rota" d="M330 170 C 360 150, 370 120, 380 90"/>
+      <circle class="halo" cx="60" cy="420" r="10"/><circle class="no p" cx="60" cy="420" r="6"/>
+      <circle class="no" cx="210" cy="300" r="5"/><circle class="no" cx="90" cy="180" r="5"/>
+      <circle class="no" cx="330" cy="170" r="5"/><circle class="no" cx="380" cy="90" r="5"/>
+      <circle class="halo" cx="250" cy="40" r="10" style="animation-delay:1.3s"/><circle class="no p" cx="250" cy="40" r="6"/>
+      <g class="camiao"><rect x="-9" y="-6" width="18" height="12" rx="3" fill="#e9edf2"/><rect x="5" y="-4" width="6" height="8" rx="2" fill="#4fd6bd"/></g>
+    </svg>
+
+    <div class="h-rod"><span>Maputo</span><span>Gaza</span><span>Inhambane</span><span>Sofala</span><span>Zambézia</span><span>Manica</span><span>Tete</span><span>Niassa</span><span>Nampula</span><span>Cabo Delgado</span></div>
+  </aside>
+
+  <main class="lado">
+    <button class="btn btn-ghost btn-icon tema" id="tema" type="button" title="Mudar tema" aria-label="Mudar tema"></button>
+    <div class="cartao">
+      <h1>Bem-vindo</h1>
+      <p class="sub">Inicie sessão para continuar.</p>
+      <form id="f" novalidate>
+        <div class="erro" id="erro" role="alert"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span></span></div>
+        <label class="campo"><span>Utilizador ou email</span>
+          <div class="ctrl"><svg class="i" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <input class="input" name="utilizador" autocomplete="username" required autofocus placeholder="ex.: admin"></div></label>
+        <label class="campo"><span>Palavra-passe</span>
+          <div class="ctrl"><svg class="i" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input class="input com-olho" name="senha" type="password" autocomplete="current-password" required placeholder="••••••••">
+            <button class="olho" type="button" id="olho" aria-label="Mostrar palavra-passe" title="Mostrar palavra-passe"></button></div>
+          <div class="caps" id="caps"><svg class="i" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Caps Lock está ligado</div></label>
+        <button class="btn entrar" type="submit"><span class="spin"></span><span class="txt">Entrar</span></button>
+      </form>
+      <div class="ajuda"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span>Esqueceu a palavra-passe ou não tem acesso? Peça ao superadmin do sistema para criar ou repor o seu utilizador.</span></div>
+      <div class="seg-rod">Ligação segura · sessão válida por 12 horas</div>
+    </div>
   </main>
-  <script src="login.js"></script>
+</div>
+<script src="login.js"></script>
 </body>
 </html>
