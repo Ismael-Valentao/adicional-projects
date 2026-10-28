@@ -106,13 +106,74 @@ const S = {
   fDest: { q: '', vista: 'todos', provincia: '', distrito: '', data: '' }, fCam: { q: '', estado: '' }, fBoard: { provincia: '' }, fCrono: { provincia: '' },
   pesq: {}, sel: new Set(), bsel: new Set(), orcEdit: false, versao: 0, stale: false, atualizado: Date.now(),
 };
-async function api(url, opt = {}) {
-  const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opt, body: opt.body ? JSON.stringify(opt.body) : undefined });
-  const j = await r.json().catch(() => ({}));
-  if (r.status === 401 && !url.startsWith('/api/auth/')) { location.href = '/login.html?voltar=' + encodeURIComponent(location.pathname + location.hash); throw new Error('Sessão expirada'); }
-  if (!r.ok) throw new Error(j.erro || r.statusText);
-  return j;
+// ============================================================ indicadores de actividade
+// enquanto há pedidos ao servidor: barra no topo; o botão clicado fica a rodar e desactivado (evita cliques duplos)
+const ACTV = { n: 0, t: null, el: null, quando: 0 };
+document.addEventListener('click', e => {
+  const b = e.target.closest('button, a.btn, [data-act]');
+  if (b) { ACTV.el = b; ACTV.quando = performance.now(); }
+}, true);
+function actividade(delta) {
+  ACTV.n = Math.max(0, ACTV.n + delta);
+  clearTimeout(ACTV.t);
+  const bar = document.getElementById('carga');
+  if (ACTV.n) ACTV.t = setTimeout(() => { bar?.classList.add('on'); document.documentElement.classList.add('ocupado'); }, 120);
+  else { bar?.classList.remove('on'); document.documentElement.classList.remove('ocupado'); }
 }
+function prender(el) {
+  if (!el?.isConnected) return null;
+  el._ocup = (el._ocup || 0) + 1;
+  if (el._ocup === 1) { el.classList.add('a-carregar'); el.setAttribute('aria-busy', 'true'); if (el.tagName === 'BUTTON') el.disabled = true; }
+  return el;
+}
+function soltar(el) {
+  if (!el) return;
+  if (ACTV.el === el) ACTV.quando = performance.now(); // pedidos encadeados (gravar → recarregar) mantêm o mesmo botão a rodar
+  setTimeout(() => {
+    if (--el._ocup > 0) return;
+    el._ocup = 0; el.classList.remove('a-carregar'); el.removeAttribute('aria-busy'); if (el.tagName === 'BUTTON') el.disabled = false;
+  }, 80);
+}
+// o pedido pertence ao último clique se aconteceu há pouco
+const doClique = () => (performance.now() - ACTV.quando < 1500 ? ACTV.el : null);
+
+async function api(url, opt = {}) {
+  const silencioso = opt.silencioso;
+  const el = silencioso ? null : prender(doClique());
+  if (!silencioso) actividade(1);
+  try {
+    const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opt, body: opt.body ? JSON.stringify(opt.body) : undefined });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401 && !url.startsWith('/api/auth/')) { location.href = '/login.html?voltar=' + encodeURIComponent(location.pathname + location.hash); throw new Error('Sessão expirada'); }
+    if (!r.ok) throw new Error(j.erro || r.statusText);
+    return j;
+  } finally {
+    if (!silencioso) actividade(-1);
+    soltar(el);
+  }
+}
+
+// exportações Excel: descarregar por fetch para mostrar que está a gerar (e avisar se falhar)
+document.addEventListener('click', async e => {
+  const a = e.target.closest('a[href$=".xlsx"]');
+  if (!a || a.target === '_blank' || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  e.preventDefault();
+  if (a.classList.contains('a-carregar')) return;
+  const el = prender(a); actividade(1);
+  try {
+    const r = await fetch(a.href);
+    if (r.status === 401) { location.href = '/login.html?voltar=' + encodeURIComponent(location.pathname + location.hash); return; }
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro || 'Não foi possível gerar o Excel');
+    const cd = r.headers.get('Content-Disposition') || '';
+    const nome = decodeURIComponent((cd.match(/filename\*=UTF-8''([^;]+)/) || [])[1] || '') || (cd.match(/filename="([^"]+)"/) || [])[1] || 'export.xlsx';
+    const url = URL.createObjectURL(await r.blob());
+    const l = Object.assign(document.createElement('a'), { href: url, download: nome });
+    document.body.append(l); l.click(); l.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast(`${nome} descarregado`);
+  } catch (x) { toast(x.message === 'Failed to fetch' ? 'Sem ligação ao servidor' : x.message, true); }
+  finally { actividade(-1); soltar(el); }
+});
 function toast(msg, err) {
   const el = document.createElement('div');
   el.className = 'toast' + (err ? ' err' : '');
@@ -133,10 +194,10 @@ async function boot() {
   setInterval(poll, 8000);
   setInterval(() => { const el = $('#live'); if (el) el.textContent = haQuanto(); }, 5000);
 }
-async function load() {
+async function load(o = {}) {
   const id = S.missao;
   const [d, p, f, transp, v, proj] = await Promise.all([
-    api(`/api/missoes/${id}/tudo`), api(`/api/missoes/${id}/painel`), api(`/api/missoes/${id}/financeiro`), api('/api/transportadoras'), api('/api/versao'), api('/api/projectos'),
+    api(`/api/missoes/${id}/tudo`, o), api(`/api/missoes/${id}/painel`, o), api(`/api/missoes/${id}/financeiro`, o), api('/api/transportadoras', o), api('/api/versao', o), api('/api/projectos', o),
   ]);
   Object.assign(S, { d, p, f, transp, proj, versao: v.versao, stale: false, atualizado: Date.now(), kitsInfo: null, audit: null });
   S.dMap = new Map(d.destinos.map(x => [x.id, x]));
@@ -145,10 +206,10 @@ async function load() {
 }
 async function poll() {
   try {
-    const { versao } = await api('/api/versao');
+    const { versao } = await api('/api/versao', { silencioso: true });
     if (versao === S.versao) return;
     if ($('.drawer') || $('.dialog') || document.activeElement?.matches('input,textarea,select')) { S.stale = true; return; }
-    await load();
+    await load({ silencioso: true });
   } catch { /* servidor indisponível: tenta de novo */ }
 }
 function haQuanto() {

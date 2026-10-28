@@ -432,3 +432,23 @@ table.grid-t tbody tr.click:hover td{background:var(--surface-2)}
 :root[data-theme="dark"] .kit.kb{background:var(--blue-soft);border-color:var(--blue-line);color:var(--blue)}
 :root[data-theme="dark"] .kit.ks{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
 :root[data-theme="dark"] .select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237f848f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+
+/* ---------- indicadores de actividade ---------- */
+#carga{position:fixed;top:0;left:0;right:0;height:3px;z-index:10000;pointer-events:none;overflow:hidden;opacity:0;transition:opacity .18s}
+#carga.on{opacity:1}
+#carga::before{content:"";position:absolute;top:0;bottom:0;left:-40%;width:40%;border-radius:3px;background:linear-gradient(90deg,transparent,#1d9bd7,#22b39a,#7cc242,transparent);animation:carga 1.05s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes carga{to{left:100%}}
+html.ocupado,html.ocupado *{cursor:progress}
+@keyframes roda{to{transform:rotate(360deg)}}
+.btn.a-carregar{pointer-events:none}
+.btn.a-carregar:disabled{opacity:.85}
+.btn.a-carregar>svg:first-child{display:none}
+.btn.a-carregar::before{content:"";flex:none;width:13px;height:13px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:roda .6s linear infinite}
+.a-carregar:not(.btn){opacity:.55;pointer-events:none;transition:opacity .12s}
+.arranque{min-height:100vh;display:grid;place-content:center;justify-items:center;gap:18px;color:var(--text-2)}
+.arranque img{height:52px}
+.arranque span{font-size:13px}
+.arranque-barra{width:180px;height:3px;border-radius:3px;background:var(--line);overflow:hidden;position:relative}
+.arranque-barra i{position:absolute;top:0;bottom:0;left:-40%;width:40%;border-radius:3px;background:linear-gradient(90deg,#1d9bd7,#22b39a,#7cc242);animation:carga 1.05s cubic-bezier(.4,0,.2,1) infinite}
+:root[data-theme="dark"] .arranque img{content:url(adicional-logo-branco.svg)}
+@media (prefers-reduced-motion:reduce){#carga::before,.arranque-barra i{animation-duration:2.4s}.btn.a-carregar::before{animation-duration:1.2s}}
