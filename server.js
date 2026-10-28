@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const db = require('./db');
 const L = require('./logic');
 const A = require('./auth');
+const AU = require('./auditoria');
 const { exportarExcel } = require('./export');
 const { guiaHTML, ndHTML } = require('./guia');
 const MP = require('./mapa_projectos');
@@ -25,6 +26,7 @@ const txt = v => (v === '' || v == null ? null : String(v).trim());
 // ---------- acesso: só o ecrã de login e os seus ficheiros ficam abertos ----------
 app.get('/saude', (req, res) => res.json({ ok: true }));
 app.use(A.exigirSessao(['/login.html', '/login.js', '/styles.css', '/favicon.ico', '/api/auth/login', '/saude']));
+app.use(AU.contexto);
 app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
@@ -33,18 +35,21 @@ let versao = Date.now();
 app.use((req, res, next) => { if (req.method !== 'GET') res.on('finish', () => { if (res.statusCode < 400) versao = Date.now(); }); next(); });
 app.get('/api/versao', (req, res) => res.json({ versao }));
 A.rotas(app, wrap);
+AU.rotas(app, wrap, A.soSuperadmin);
 
 // Gera UPDATE só com os campos permitidos que vieram no corpo
 async function atualizar(tabela, id, body, campos) {
   const keys = Object.keys(body).filter(k => campos[k]);
   if (!keys.length) return;
-  await db.prepare(`UPDATE ${tabela} SET ${keys.map(k => `${k}=?`).join(',')} WHERE id=?`).run(...keys.map(k => campos[k](body[k])), id);
+  await AU.alterar(tabela, id, () => db.prepare(`UPDATE ${tabela} SET ${keys.map(k => `${k}=?`).join(',')} WHERE id=?`).run(...keys.map(k => campos[k](body[k])), id));
 }
 async function inserir(tabela, body, campos, extra = {}) {
   const keys = Object.keys(body).filter(k => campos[k]);
   const all = [...Object.keys(extra), ...keys];
   const vals = [...Object.values(extra), ...keys.map(k => campos[k](body[k]))];
-  return (await db.prepare(`INSERT INTO ${tabela} (${all.join(',')}) VALUES (${all.map(() => '?').join(',')})`).run(...vals)).lastInsertRowid;
+  const id = (await db.prepare(`INSERT INTO ${tabela} (${all.join(',')}) VALUES (${all.map(() => '?').join(',')})`).run(...vals)).lastInsertRowid;
+  await AU.depoisDeCriar(tabela, id);
+  return id;
 }
 const CAMPOS_DESTINO = {
   provincia: txt, distrito: txt, posto: txt, localidade: txt, comunidade: txt,
@@ -81,7 +86,13 @@ app.put('/api/missoes/:id', wrap(async req => { await atualizar('missoes', req.p
 app.get('/api/missoes/:id/painel', wrap(req => L.painel(req.params.id)));
 app.get('/api/missoes/:id/tudo', wrap(req => L.carregarMissao(req.params.id)));
 app.get('/api/missoes/:id/financeiro', wrap(req => L.financeiro(req.params.id)));
-app.put('/api/missoes/:id/orcamento', wrap(async req => { await L.gravarOrcamento(req.params.id, req.body.linhas || []); return { ok: true }; }));
+const orcObj = async mid => Object.fromEntries((await db.prepare('SELECT categoria, valor FROM orcamento WHERE missao_id=?').all(mid)).map(r => [r.categoria, r.valor]));
+app.put('/api/missoes/:id/orcamento', wrap(async req => {
+  const antes = await orcObj(req.params.id);
+  await L.gravarOrcamento(req.params.id, req.body.linhas || []);
+  await AU.registar({ accao: 'alterar', entidade: 'orcamento', missao_id: Number(req.params.id), resumo: 'Limites de orçamento por rubrica', antes, depois: await orcObj(req.params.id) });
+  return { ok: true };
+}));
 app.get('/api/missoes/:id/sugestoes', wrap(req => L.sugestoes(req.params.id)));
 app.get('/api/missoes/:id/export.xlsx', wrap(async (req, res) => {
   const M = await L.carregarMissao(req.params.id);
@@ -98,8 +109,10 @@ app.get('/api/missoes/:id/kits', wrap(async req => {
 }));
 app.put('/api/kit-itens/:id', wrap(async req => {
   const b = req.body;
-  if ('qtd' in b) await db.prepare('UPDATE kit_itens SET qtd=? WHERE id=?').run(num(b.qtd) ?? 0, req.params.id);
-  if ('peso_kg' in b) await db.prepare('UPDATE kit_itens SET peso_kg=? WHERE id=?').run(num(b.peso_kg), req.params.id);
+  await AU.alterar('kit_itens', req.params.id, async () => {
+    if ('qtd' in b) await db.prepare('UPDATE kit_itens SET qtd=? WHERE id=?').run(num(b.qtd) ?? 0, req.params.id);
+    if ('peso_kg' in b) await db.prepare('UPDATE kit_itens SET peso_kg=? WHERE id=?').run(num(b.peso_kg), req.params.id);
+  });
   return { ok: true };
 }));
 app.get('/guia/:vid', wrap(async (req, res) => {
@@ -110,8 +123,15 @@ app.get('/guia/:vid', wrap(async (req, res) => {
 }));
 
 // ---------- notas de débito a transportadores ----------
+const linhasNDtxt = async id => (await db.prepare('SELECT artigo, quantidade, preco_unit FROM nd_linhas WHERE nd_id=? ORDER BY ordem, id').all(id)).map(l => `${l.quantidade} × ${l.artigo} @ ${l.preco_unit}`).join('; ');
 async function gravarLinhasND(id, linhas) {
   if (!Array.isArray(linhas)) return;
+  const antes = await linhasNDtxt(id);
+  await gravarLinhasNDsem(id, linhas);
+  const depois = await linhasNDtxt(id);
+  if (antes) await AU.registar({ accao: 'alterar', entidade: 'notas_debito', entidade_id: Number(id), resumo: 'Linhas da nota de débito', antes: { linhas: antes }, depois: { linhas: depois } });
+}
+async function gravarLinhasNDsem(id, linhas) {
   await db.prepare('DELETE FROM nd_linhas WHERE nd_id=?').run(id);
   const ins = db.prepare('INSERT INTO nd_linhas (nd_id, artigo, quantidade, preco_unit, ordem) VALUES (?,?,?,?,?)');
   let i = 0;
@@ -137,7 +157,7 @@ app.put('/api/notas-debito/:id', wrap(async req => {
   await db.tx(async () => { await atualizar('notas_debito', req.params.id, b, CAMPOS_ND); await gravarLinhasND(req.params.id, b.linhas); });
   return { ok: true };
 }));
-app.delete('/api/notas-debito/:id', wrap(async req => { await db.prepare('DELETE FROM notas_debito WHERE id=?').run(req.params.id); return { ok: true }; }));
+app.delete('/api/notas-debito/:id', wrap(async req => { await AU.apagar('notas_debito', req.params.id); return { ok: true }; }));
 app.get('/nd/:id', wrap(async (req, res) => {
   const n = await db.prepare('SELECT missao_id FROM notas_debito WHERE id=?').get(req.params.id);
   const html = n && await ndHTML(n.missao_id, req.params.id);
@@ -166,7 +186,7 @@ app.post('/api/destinos/:id/itens', wrap(async req => {
   return { id: await inserir('destino_itens', req.body, CAMPOS_ITEM, { destino_id: Number(req.params.id), ordem }) };
 }));
 app.put('/api/itens/:id', wrap(async req => { await atualizar('destino_itens', req.params.id, req.body, CAMPOS_ITEM); return { ok: true }; }));
-app.delete('/api/itens/:id', wrap(async req => { await db.prepare('DELETE FROM destino_itens WHERE id=?').run(req.params.id); return { ok: true }; }));
+app.delete('/api/itens/:id', wrap(async req => { await AU.apagar('destino_itens', req.params.id); return { ok: true }; }));
 
 // Importar um projecto: { missao:{...}, destinos:[{..., itens:[...]}] } — cria tudo numa transacção
 app.post('/api/importar-projecto', wrap(async req => {
@@ -198,12 +218,13 @@ app.post('/api/destinos/:id/repartir', wrap(async req => {
   const n = (await db.prepare('SELECT COUNT(*) n FROM destinos WHERE missao_id=? AND (comunidade=? OR comunidade LIKE ?)').get(d.missao_id, base, base + ' (%.ª entrega)')).n + 1;
   const dm = x => (x ? `${x.slice(8)}/${x.slice(5, 7)}` : '');
   return db.tx(async () => {
-    await db.prepare(`UPDATE destinos SET benef_baixa=?, benef_sequeiro=?, benef_total=?, estado='entregue', data_entrega=?, benef_atendidos=NULL, observacoes=? WHERE id=?`)
-      .run(b, s, b + s, dataEnt, [d.observacoes, `Repartido: entregues B${b}/S${s} a ${dm(dataEnt)}; restante (B${rb}/S${rs}) em "${base} (${n}.ª entrega)"`].filter(Boolean).join(' | '), d.id);
+    await AU.alterar('destinos', d.id, () => db.prepare(`UPDATE destinos SET benef_baixa=?, benef_sequeiro=?, benef_total=?, estado='entregue', data_entrega=?, benef_atendidos=NULL, observacoes=? WHERE id=?`)
+      .run(b, s, b + s, dataEnt, [d.observacoes, `Repartido: entregues B${b}/S${s} a ${dm(dataEnt)}; restante (B${rb}/S${rs}) em "${base} (${n}.ª entrega)"`].filter(Boolean).join(' | '), d.id), 'Entrega repartida');
     const id = (await db.prepare(`INSERT INTO destinos (missao_id, provincia, distrito, posto, localidade, comunidade, benef_baixa, benef_sequeiro, benef_total,
       local_entrega, data_prevista, estado, observacoes, ordem) VALUES (?,?,?,?,?,?,?,?,?,?,?,'pendente',?,?)`)
       .run(d.missao_id, d.provincia, d.distrito, d.posto, d.localidade, `${base} (${n}.ª entrega)`, rb, rs, rb + rs, d.local_entrega,
         txt(req.body.data_prevista) ?? null, [`Restante da entrega de ${dm(dataEnt)}`, txt(req.body.observacoes)].filter(Boolean).join(' | '), d.ordem)).lastInsertRowid;
+    await AU.depoisDeCriar('destinos', id, `Destino ${base} (${n}.ª entrega) criado ao repartir`);
     return { ok: true, id };
   });
 }));
@@ -213,7 +234,7 @@ app.post('/api/destinos/lote', wrap(async req => {
   for (const id of ids) await atualizar('destinos', id, campos, CAMPOS_DESTINO);
   return { ok: true, n: ids.length };
 }));
-app.delete('/api/destinos/:id', wrap(async req => { await db.prepare('DELETE FROM destinos WHERE id=?').run(req.params.id); return { ok: true }; }));
+app.delete('/api/destinos/:id', wrap(async req => { await AU.apagar('destinos', req.params.id); return { ok: true }; }));
 
 // ---------- mapa de projectos ----------
 app.get('/api/projectos', wrap(() => L.mapaProjectos()));
@@ -238,7 +259,7 @@ app.post('/api/transportadoras', wrap(async req => {
   return { id: await inserir('transportadoras', req.body, CAMPOS_TRANSP) };
 }));
 app.put('/api/transportadoras/:id', wrap(async req => { await atualizar('transportadoras', req.params.id, req.body, CAMPOS_TRANSP); return { ok: true }; }));
-app.delete('/api/transportadoras/:id', wrap(async req => { await db.prepare('DELETE FROM transportadoras WHERE id=?').run(req.params.id); return { ok: true }; }));
+app.delete('/api/transportadoras/:id', wrap(async req => { await AU.apagar('transportadoras', req.params.id); return { ok: true }; }));
 
 // Histórico de matrículas/motoristas (para autocompletar) — o mais recente de cada matrícula
 app.get('/api/frota-conhecida', wrap(async () => {
@@ -248,8 +269,16 @@ app.get('/api/frota-conhecida', wrap(async () => {
 }));
 
 // ---------- viagens (camiões) ----------
+const destinosTxt = async vid => (await db.prepare('SELECT d.comunidade, vd.preco FROM viagem_destinos vd JOIN destinos d ON d.id=vd.destino_id WHERE vd.viagem_id=? ORDER BY vd.ordem, vd.id').all(vid)).map(r => r.comunidade + (r.preco ? ` (${r.preco})` : '')).join(', ');
 async function gravarDestinosViagem(vid, destinos) {
   if (!Array.isArray(destinos)) return;
+  const antes = await destinosTxt(vid);
+  await gravarDestinosViagemSem(vid, destinos);
+  const depois = await destinosTxt(vid);
+  const v = await db.prepare('SELECT codigo, matricula, missao_id FROM viagens WHERE id=?').get(vid);
+  await AU.registar({ accao: 'alterar', entidade: 'viagens', entidade_id: Number(vid), missao_id: v?.missao_id, resumo: `Destinos do camião ${v?.codigo || ''} ${v?.matricula || ''}`, antes: { destinos: antes }, depois: { destinos: depois } });
+}
+async function gravarDestinosViagemSem(vid, destinos) {
   await db.prepare('DELETE FROM viagem_destinos WHERE viagem_id=?').run(vid);
   const ins = db.prepare('INSERT INTO viagem_destinos (viagem_id, destino_id, preco, ordem) VALUES (?,?,?,?)');
   let i = 0;
@@ -257,11 +286,11 @@ async function gravarDestinosViagem(vid, destinos) {
 }
 async function propagarEstado(vid, estado, data) {
   const ids = (await db.prepare('SELECT destino_id FROM viagem_destinos WHERE viagem_id=?').all(vid)).map(r => r.destino_id);
-  for (const id of ids) {
+  for (const id of ids) await AU.alterar('destinos', id, async () => {
     if (estado === 'em_transito') await db.prepare(`UPDATE destinos SET estado='em_transito' WHERE id=? AND estado IN ('pendente','adiado')`).run(id);
     if (estado === 'planeada' || estado === 'carregada' || estado === 'cancelada') await db.prepare(`UPDATE destinos SET estado='pendente' WHERE id=? AND estado='em_transito'`).run(id);
     if (estado === 'concluida') await db.prepare(`UPDATE destinos SET estado='entregue', data_entrega=COALESCE(data_entrega, ?) WHERE id=? AND estado IN ('pendente','em_transito','adiado')`).run(data || L.hoje(), id);
-  }
+  }, 'Estado do destino alterado pelo camião');
 }
 app.post('/api/missoes/:id/viagens', wrap(async req => {
   const b = req.body;
@@ -284,7 +313,7 @@ app.put('/api/viagens/:id', wrap(async req => {
   return { ok: true };
 }));
 app.delete('/api/viagens/:id', wrap(async req => {
-  await db.tx(async () => { await propagarEstado(req.params.id, 'cancelada'); await db.prepare('DELETE FROM viagens WHERE id=?').run(req.params.id); });
+  await db.tx(async () => { await propagarEstado(req.params.id, 'cancelada'); await AU.apagar('viagens', req.params.id); });
   return { ok: true };
 }));
 
@@ -294,7 +323,7 @@ app.post('/api/missoes/:id/custos', wrap(async req => {
   return { id: await inserir('custos', req.body, CAMPOS_CUSTO, { missao_id: Number(req.params.id) }) };
 }));
 app.put('/api/custos/:id', wrap(async req => { await atualizar('custos', req.params.id, req.body, CAMPOS_CUSTO); return { ok: true }; }));
-app.delete('/api/custos/:id', wrap(async req => { await db.prepare('DELETE FROM custos WHERE id=?').run(req.params.id); return { ok: true }; }));
+app.delete('/api/custos/:id', wrap(async req => { await AU.apagar('custos', req.params.id); return { ok: true }; }));
 
 const PORT = process.env.PORT || 3060;
 (async () => {

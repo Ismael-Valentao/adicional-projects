@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('./db');
+const AU = require('./auditoria');
 
 const PERFIS = { superadmin: 'Superadmin', utilizador: 'Utilizador' };
 const COOKIE = 'sessao';
@@ -62,18 +63,23 @@ function rotas(app, wrap) {
   app.post('/api/auth/login', wrap(async (req, res) => {
     const id = String(req.body.utilizador || '').trim().toLowerCase(), senha = String(req.body.senha || '');
     const u = await db.prepare('SELECT * FROM utilizadores WHERE (LOWER(utilizador)=? OR LOWER(email)=?) AND activo=1').get(id, id);
-    if (!u || !(await bcrypt.compare(senha, u.senha_hash))) { await new Promise(r => setTimeout(r, 600)); res.status(401); return { erro: 'Utilizador ou palavra-passe incorrectos' }; }
+    if (!u || !(await bcrypt.compare(senha, u.senha_hash))) {
+      await AU.registar({ accao: 'login_falhado', entidade: 'sessao', resumo: `Tentativa de entrada falhada com "${id.slice(0, 60)}"`, utilizador: u ? publico(u) : null });
+      await new Promise(r => setTimeout(r, 600)); res.status(401); return { erro: 'Utilizador ou palavra-passe incorrectos' };
+    }
     await db.prepare('UPDATE utilizadores SET ultimo_acesso=NOW() WHERE id=?').run(u.id);
     definirCookie(res, u);
+    await AU.registar({ accao: 'login', entidade: 'sessao', entidade_id: u.id, resumo: 'Entrou no sistema', utilizador: u });
     return { utilizador: publico(u) };
   }));
-  app.post('/api/auth/logout', (req, res) => { res.clearCookie(COOKIE); res.json({ ok: true }); });
+  app.post('/api/auth/logout', wrap(async (req, res) => { if (req.user) await AU.registar({ accao: 'logout', entidade: 'sessao', entidade_id: req.user.id, resumo: 'Saiu do sistema' }); res.clearCookie(COOKIE); return { ok: true }; }));
   app.get('/api/auth/eu', wrap(req => ({ utilizador: publico(req.user), perfis: PERFIS })));
   app.post('/api/auth/senha', wrap(async (req, res) => {
     const { atual, nova } = req.body;
     if (!(await bcrypt.compare(String(atual || ''), req.user.senha_hash))) throw new Error('A palavra-passe actual não está correcta');
     validarSenha(nova);
     await db.prepare('UPDATE utilizadores SET senha_hash=?, mudar_senha=0 WHERE id=?').run(await hash(nova), req.user.id);
+    await AU.registar({ accao: 'senha', entidade: 'utilizadores', entidade_id: req.user.id, resumo: 'Mudou a sua palavra-passe' });
     definirCookie(res, req.user);
     return { ok: true };
   }));
@@ -88,6 +94,7 @@ function rotas(app, wrap) {
     if (await db.prepare('SELECT id FROM utilizadores WHERE LOWER(utilizador)=LOWER(?)').get(b.utilizador.trim())) throw new Error('Esse nome de utilizador já existe');
     const r = await db.prepare('INSERT INTO utilizadores (nome, utilizador, email, senha_hash, perfil, mudar_senha, observacoes) VALUES (?,?,?,?,?,1,?)')
       .run(b.nome.trim(), b.utilizador.trim(), b.email || null, await hash(b.senha), b.perfil, b.observacoes || null);
+    await AU.depoisDeCriar('utilizadores', r.lastInsertRowid, `Utilizador ${b.utilizador.trim()} criado (${PERFIS[b.perfil]})`);
     return { id: r.lastInsertRowid };
   }));
   app.put('/api/utilizadores/:id', soSuperadmin, wrap(async req => {
@@ -101,9 +108,9 @@ function rotas(app, wrap) {
       const n = (await db.prepare("SELECT COUNT(*) n FROM utilizadores WHERE perfil='superadmin' AND activo=1 AND id<>?").get(id)).n;
       if (!n) throw new Error('Tem de existir pelo menos um superadmin activo');
     }
-    await db.prepare('UPDATE utilizadores SET nome=?, email=?, perfil=?, activo=?, observacoes=? WHERE id=?')
-      .run(String(b.nome ?? alvo.nome).trim(), b.email ?? alvo.email, perfil, activo, b.observacoes ?? alvo.observacoes, id);
-    if (b.senha) { validarSenha(b.senha); await db.prepare('UPDATE utilizadores SET senha_hash=?, mudar_senha=1 WHERE id=?').run(await hash(b.senha), id); }
+    await AU.alterar('utilizadores', id, () => db.prepare('UPDATE utilizadores SET nome=?, email=?, perfil=?, activo=?, observacoes=? WHERE id=?')
+      .run(String(b.nome ?? alvo.nome).trim(), b.email ?? alvo.email, perfil, activo, b.observacoes ?? alvo.observacoes, id), `Utilizador ${alvo.utilizador}`);
+    if (b.senha) { validarSenha(b.senha); await db.prepare('UPDATE utilizadores SET senha_hash=?, mudar_senha=1 WHERE id=?').run(await hash(b.senha), id); await AU.registar({ accao: 'senha', entidade: 'utilizadores', entidade_id: id, resumo: `Palavra-passe de ${alvo.utilizador} reposta pelo superadmin` }); }
     return { ok: true };
   }));
 }

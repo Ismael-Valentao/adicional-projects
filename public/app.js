@@ -102,7 +102,7 @@ const NIVEL_VIAGEM = { planeada: 'neutro', carregada: 'violet', em_transito: 'in
 // ============================================================ estado e API
 const S = {
   missoes: [], missao: null, meta: null, d: null, p: null, f: null, transp: [],
-  page: (location.hash.slice(1) in { overview: 1, planeamento: 1, cronograma: 1, destinos: 1, camioes: 1, financeiro: 1, custos: 1, transportadoras: 1, kits: 1, notas: 1, projectos: 1, utilizadores: 1 } && location.hash.slice(1)) || localStorage.getItem('pagina') || 'overview',
+  page: (location.hash.slice(1) in { overview: 1, planeamento: 1, cronograma: 1, destinos: 1, camioes: 1, financeiro: 1, custos: 1, transportadoras: 1, kits: 1, notas: 1, projectos: 1, utilizadores: 1, auditoria: 1 } && location.hash.slice(1)) || localStorage.getItem('pagina') || 'overview',
   fDest: { q: '', vista: 'todos', provincia: '', distrito: '', data: '' }, fCam: { q: '', estado: '' }, fBoard: { provincia: '' }, fCrono: { provincia: '' },
   pesq: {}, sel: new Set(), bsel: new Set(), orcEdit: false, versao: 0, stale: false, atualizado: Date.now(),
 };
@@ -138,7 +138,7 @@ async function load() {
   const [d, p, f, transp, v, proj] = await Promise.all([
     api(`/api/missoes/${id}/tudo`), api(`/api/missoes/${id}/painel`), api(`/api/missoes/${id}/financeiro`), api('/api/transportadoras'), api('/api/versao'), api('/api/projectos'),
   ]);
-  Object.assign(S, { d, p, f, transp, proj, versao: v.versao, stale: false, atualizado: Date.now(), kitsInfo: null });
+  Object.assign(S, { d, p, f, transp, proj, versao: v.versao, stale: false, atualizado: Date.now(), kitsInfo: null, audit: null });
   S.dMap = new Map(d.destinos.map(x => [x.id, x]));
   S.vMap = new Map(d.viagens.map(x => [x.id, x]));
   render();
@@ -186,7 +186,7 @@ function render() {
         <a class="${S.page === 'projectos' ? 'on' : ''}" data-act="nav" data-k="projectos">${ic('chart')}<span>Todos os projectos</span><span class="cnt">${S.proj?.length || ''}</span></a>
         <div class="nav-label">Operação</div>${NAV.slice(0, 5).map(navItem).join('')}
         <div class="nav-label">Finanças</div>${NAV.slice(5, 8).map(navItem).join('')}
-        <div class="nav-label">Cadastros</div>${NAV.slice(8).map(navItem).join('')}${S.eu?.perfil === 'superadmin' ? `<a class="${S.page === 'utilizadores' ? 'on' : ''}" data-act="nav" data-k="utilizadores">${ic('users')}<span>Utilizadores</span></a>` : ''}
+        <div class="nav-label">Cadastros</div>${NAV.slice(8).map(navItem).join('')}${S.eu?.perfil === 'superadmin' ? `<a class="${S.page === 'utilizadores' ? 'on' : ''}" data-act="nav" data-k="utilizadores">${ic('users')}<span>Utilizadores</span></a><a class="${S.page === 'auditoria' ? 'on' : ''}" data-act="nav" data-k="auditoria">${ic('clock')}<span>Auditoria</span></a>` : ''}
       </nav>
       <div class="side-foot">
         <div class="today">${ic('calendar', 'sm')} Hoje, ${dLong(S.d.hoje)}</div>
@@ -868,7 +868,49 @@ function menuConta(btn) {
   };
 }
 
-const PAGES = { utilizadores: pgUtilizadores, projectos: pgProjectos, notas: pgNotas, kits: pgKits, overview: pgOverview, planeamento: pgPlaneamento, cronograma: pgCronograma, destinos: pgDestinos, camioes: pgCamioes, financeiro: pgFinanceiro, custos: pgCustos, transportadoras: pgTransportadoras };
+// ---------- Auditoria
+const CAMPO = { estado: 'Estado', data_prevista: 'Data prevista', data_entrega: 'Data de entrega', data_saida: 'Saída', data_saida_prevista: 'Saída prevista', data_regresso: 'Regresso',
+  benef_baixa: 'Kits Baixa', benef_sequeiro: 'Kits Sequeiro', benef_total: 'Total kits', benef_atendidos: 'Atendidos', comunidade: 'Comunidade', local_entrega: 'Local de entrega',
+  observacoes: 'Observações', matricula: 'Matrícula', motorista: 'Motorista', motorista_tel: 'Telefone', transportadora_id: 'Transportadora', preco_global: 'Preço',
+  modo_preco: 'Modo de preço', adiantamento: 'Adiantamento', valor_pago: 'Pago', destinos: 'Destinos', linhas: 'Linhas', valor_unitario: 'Valor unitário', quantidade: 'Quantidade',
+  pago: 'Pago', categoria: 'Categoria', descricao: 'Descrição', receita_valor: 'Orçamento do projecto', nome: 'Nome', perfil: 'Perfil', activo: 'Activo', volumes: 'Volumes', peso_kg: 'Peso (kg)',
+  capacidade_t: 'Capacidade (t)', origem: 'Origem', referencia: 'Referência', motivo: 'Motivo', qtd: 'Qtd por kit', transporte: 'Transporte', recebido_por: 'Recebido por', posto: 'Posto Adm.', localidade: 'Localidade', distrito: 'Distrito', provincia: 'Província', codigo: 'Código', artigo: 'Artigo', fornecedor: 'Fornecedor', lote: 'Lote', utilizador: 'Utilizador', email: 'Email', cliente: 'Cliente', data: 'Data', numero: 'Número' };
+const ACCAO = { criar: ['Criou', 'ok'], alterar: ['Alterou', 'info'], apagar: ['Apagou', 'critico'], login: ['Entrou', 'neutro'], logout: ['Saiu', 'neutro'], login_falhado: ['Entrada falhada', 'alerta'], senha: ['Palavra-passe', 'violet'] };
+function pgAuditoria() {
+  if (S.eu?.perfil !== 'superadmin') return head('Auditoria', 'Só o superadmin pode ver a auditoria.');
+  const F = S.fAud ||= { de: addDias(S.d.hoje, -30), ate: S.d.hoje, utilizador: '', missao: '', accao: '' };
+  if (!S.audit) {
+    const q = new URLSearchParams(Object.entries(F).filter(([, v]) => v)).toString();
+    Promise.all([api('/api/auditoria?' + q), S.utilizadores ? S.utilizadores : api('/api/utilizadores')]).then(([a, u]) => { S.audit = a; S.utilizadores = u; if (S.page === 'auditoria') renderPage(); }).catch(e => toast(e.message, true));
+    return head('Auditoria', 'A carregar…');
+  }
+  const opt = (arr, v, t) => `<option value="">${t}</option>${arr.map(([k, n]) => `<option value="${esc(k)}" ${String(v) === String(k) ? 'selected' : ''}>${esc(n)}</option>`).join('')}`;
+  const val = v => (v === null || v === undefined || v === '' ? '<span class="muted">vazio</span>' : esc(String(v).length > 80 ? String(v).slice(0, 80) + '…' : v));
+  return head('Auditoria', 'Quem fez o quê e quando — registo automático e permanente', '') + `
+  <div class="page-body">
+    <div class="toolbar">
+      <input class="input" type="date" data-faud="de" value="${esc(F.de)}" style="width:auto"> <span class="muted">a</span> <input class="input" type="date" data-faud="ate" value="${esc(F.ate)}" style="width:auto">
+      <select class="select" data-faud="utilizador">${opt((S.utilizadores || []).map(u => [u.id, u.nome]), F.utilizador, 'Todos os utilizadores')}</select>
+      <select class="select" data-faud="missao">${opt(S.missoes.map(m => [m.id, m.nome]), F.missao, 'Todos os projectos')}</select>
+      <select class="select" data-faud="accao">${opt(Object.entries(ACCAO).map(([k, [n]]) => [k, n]), F.accao, 'Todas as acções')}</select>
+      <span class="grow"></span>${pesquisa('aud', 'Procurar no registo…')}
+    </div>
+    <div class="table-wrap">${S.audit.length ? `<table class="t" data-pesq-tabela="aud"><thead><tr><th>Quando</th><th>Quem</th><th>Acção</th><th>Registo</th><th>O que mudou</th></tr></thead><tbody>
+      ${S.audit.map(a => { const [an, nv] = ACCAO[a.accao] || [a.accao, 'neutro']; const pj = S.missoes.find(m => m.id === a.missao_id);
+        const det = a.mudancas ? a.mudancas.map(m => `<div class="sm"><b>${esc(CAMPO[m.campo] || m.campo)}</b>: ${val(m.antes)} → ${val(m.depois)}</div>`).join('')
+          : a.accao === 'apagar' && a.antes ? `<div class="t2">${esc(Object.entries(a.antes).filter(([k, v]) => v != null && !['id', 'missao_id', 'ordem'].includes(k)).slice(0, 6).map(([k, v]) => `${CAMPO[k] || k}: ${v}`).join(' · '))}</div>`
+          : a.accao === 'criar' && a.depois ? `<div class="t2">${esc(Object.entries(a.depois).filter(([k, v]) => v != null && v !== '' && !['id', 'missao_id', 'ordem'].includes(k)).slice(0, 6).map(([k, v]) => `${CAMPO[k] || k}: ${v}`).join(' · '))}</div>` : '';
+        return `<tr><td class="nowrap">${esc(a.quando.slice(8, 10) + '/' + a.quando.slice(5, 7) + ' ' + a.quando.slice(11, 16))}<div class="t2">${esc(a.quando.slice(0, 4))}</div></td>
+          <td><span class="t1">${esc(a.utilizador_nome || '—')}</span>${a.ip ? `<div class="t2 mono">${esc(a.ip)}</div>` : ''}</td>
+          <td>${badge(an, nv)}</td>
+          <td><div class="t1">${esc(a.resumo || '')}</div><div class="t2">${esc([a.entidade_nome, pj?.nome].filter(Boolean).join(' · '))}</div></td>
+          <td>${det}</td></tr>`; }).join('')}
+    </tbody></table>` : '<div class="empty"><div class="ico-box">' + ic('clock') + '</div><b>Sem registos neste filtro</b>Ajuste o período ou os filtros.</div>'}</div>
+    <div class="muted sm" style="margin-top:10px">${S.audit.length >= 500 ? 'A mostrar os 500 registos mais recentes deste filtro — reduza o período para ver mais antigos. ' : ''}Os registos de auditoria não podem ser alterados nem apagados pela aplicação.</div>
+  </div>`;
+}
+
+const PAGES = { auditoria: pgAuditoria, utilizadores: pgUtilizadores, projectos: pgProjectos, notas: pgNotas, kits: pgKits, overview: pgOverview, planeamento: pgPlaneamento, cronograma: pgCronograma, destinos: pgDestinos, camioes: pgCamioes, financeiro: pgFinanceiro, custos: pgCustos, transportadoras: pgTransportadoras };
 var AFTER_planeamento;
 const AFTER = {
   planeamento: () => AFTER_planeamento(),
@@ -1378,6 +1420,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.dataset?.faud) { S.fAud[t.dataset.faud] = t.value; S.audit = null; return renderPage(); }
   if (t.dataset.sel) { const id = Number(t.dataset.sel); t.checked ? S.sel.add(id) : S.sel.delete(id); t.closest('tr').classList.toggle('sel', t.checked); renderSelbar(); }
   else if (t.hasAttribute('data-selall')) { destFiltrados().forEach(d => (t.checked ? S.sel.add(d.id) : S.sel.delete(d.id))); tabelaDestinos(); renderSelbar(); }
   else if (t.dataset.bsel) { const id = Number(t.dataset.bsel); t.checked ? S.bsel.add(id) : S.bsel.delete(id); renderPage(); }

@@ -10,6 +10,10 @@ const pool = mysql.createPool({
   charset: 'utf8mb4', dateStrings: true, decimalNumbers: true, connectTimeout: 20000,
 });
 
+// datas/horas gravadas pela BD (NOW(), CURRENT_TIMESTAMP) na hora de Moçambique
+const TZ_BD = process.env.DB_TZ || '+02:00';
+pool.pool.on('connection', c => c.query(`SET time_zone='${TZ_BD}'`));
+
 // dentro de db.tx(), todas as consultas usam a mesma ligação (transacção)
 const als = new AsyncLocalStorage();
 const exe = () => als.getStore() || pool;
@@ -99,6 +103,13 @@ const ESQUEMA = [
     id INT AUTO_INCREMENT PRIMARY KEY, nome VARCHAR(160) NOT NULL, utilizador VARCHAR(80) NOT NULL UNIQUE, email VARCHAR(160),
     senha_hash VARCHAR(100) NOT NULL, perfil VARCHAR(20) NOT NULL DEFAULT 'operador', activo TINYINT NOT NULL DEFAULT 1,
     mudar_senha TINYINT NOT NULL DEFAULT 0, ultimo_acesso DATETIME NULL, observacoes TEXT, criado_em DATETIME DEFAULT CURRENT_TIMESTAMP) ${T}`,
+  // auditoria (só se acrescenta)
+  `CREATE TABLE IF NOT EXISTS auditoria (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY, quando DATETIME DEFAULT CURRENT_TIMESTAMP,
+    utilizador_id INT NULL, utilizador_nome VARCHAR(200), ip VARCHAR(60),
+    accao VARCHAR(30) NOT NULL, entidade VARCHAR(40), entidade_id INT NULL, missao_id INT NULL,
+    resumo VARCHAR(500), mudancas MEDIUMTEXT, antes MEDIUMTEXT, depois MEDIUMTEXT,
+    INDEX (quando), INDEX (utilizador_id), INDEX (missao_id), INDEX (entidade, entidade_id)) ${T}`,
 ];
 
 async function init() {
