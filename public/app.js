@@ -102,13 +102,14 @@ const NIVEL_VIAGEM = { planeada: 'neutro', carregada: 'violet', em_transito: 'in
 // ============================================================ estado e API
 const S = {
   missoes: [], missao: null, meta: null, d: null, p: null, f: null, transp: [],
-  page: (location.hash.slice(1) in { overview: 1, planeamento: 1, cronograma: 1, destinos: 1, camioes: 1, financeiro: 1, custos: 1, transportadoras: 1, kits: 1, notas: 1, projectos: 1 } && location.hash.slice(1)) || localStorage.getItem('pagina') || 'overview',
+  page: (location.hash.slice(1) in { overview: 1, planeamento: 1, cronograma: 1, destinos: 1, camioes: 1, financeiro: 1, custos: 1, transportadoras: 1, kits: 1, notas: 1, projectos: 1, utilizadores: 1 } && location.hash.slice(1)) || localStorage.getItem('pagina') || 'overview',
   fDest: { q: '', vista: 'todos', provincia: '', distrito: '', data: '' }, fCam: { q: '', estado: '' }, fBoard: { provincia: '' }, fCrono: { provincia: '' },
   pesq: {}, sel: new Set(), bsel: new Set(), orcEdit: false, versao: 0, stale: false, atualizado: Date.now(),
 };
 async function api(url, opt = {}) {
   const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opt, body: opt.body ? JSON.stringify(opt.body) : undefined });
   const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && !url.startsWith('/api/auth/')) { location.href = '/login.html?voltar=' + encodeURIComponent(location.pathname + location.hash); throw new Error('Sessão expirada'); }
   if (!r.ok) throw new Error(j.erro || r.statusText);
   return j;
 }
@@ -121,11 +122,14 @@ function toast(msg, err) {
 }
 
 async function boot() {
+  S.eu = (await api('/api/auth/eu')).utilizador;
+  aplicarTema();
   S.meta = await api('/api/meta');
   S.missoes = await api('/api/missoes');
   const g = localStorage.getItem('missao');
   S.missao = (S.missoes.find(m => String(m.id) === g) || S.missoes[0])?.id;
   await load();
+  if (S.eu?.mudar_senha) mudarSenha(true);
   setInterval(poll, 8000);
   setInterval(() => { const el = $('#live'); if (el) el.textContent = haQuanto(); }, 5000);
 }
@@ -182,13 +186,16 @@ function render() {
         <a class="${S.page === 'projectos' ? 'on' : ''}" data-act="nav" data-k="projectos">${ic('chart')}<span>Todos os projectos</span><span class="cnt">${S.proj?.length || ''}</span></a>
         <div class="nav-label">Operação</div>${NAV.slice(0, 5).map(navItem).join('')}
         <div class="nav-label">Finanças</div>${NAV.slice(5, 8).map(navItem).join('')}
-        <div class="nav-label">Cadastros</div>${NAV.slice(8).map(navItem).join('')}
+        <div class="nav-label">Cadastros</div>${NAV.slice(8).map(navItem).join('')}${S.eu?.perfil === 'superadmin' ? `<a class="${S.page === 'utilizadores' ? 'on' : ''}" data-act="nav" data-k="utilizadores">${ic('users')}<span>Utilizadores</span></a>` : ''}
       </nav>
       <div class="side-foot">
         <div class="today">${ic('calendar', 'sm')} Hoje, ${dLong(S.d.hoje)}</div>
         <div class="today"><span class="live" id="live">${haQuanto()}</span></div>
         <a class="btn btn-block" href="/api/missoes/${S.missao}/export.xlsx">${ic('download')} Exportar Excel</a>
         <button class="btn btn-ghost btn-block" data-act="missao">${ic('settings')} Definições do projecto</button>
+        <div class="conta">
+          <button class="conta-btn" data-act="conta-menu" title="Conta, tema e sair"><span class="avatar">${esc((S.eu?.nome || '?').split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase())}</span><span class="conta-n"><b>${esc(S.eu?.nome || '')}</b><small>${esc(S.eu?.perfil === 'superadmin' ? 'Superadmin' : 'Utilizador')}</small></span>${ic('chev', 'sm')}</button>
+        </div>
       </div>
     </aside>
     <main class="main" id="page"></main></div>`;
@@ -787,7 +794,81 @@ function pgProjectos() {
   </div>`;
 }
 
-const PAGES = { projectos: pgProjectos, notas: pgNotas, kits: pgKits, overview: pgOverview, planeamento: pgPlaneamento, cronograma: pgCronograma, destinos: pgDestinos, camioes: pgCamioes, financeiro: pgFinanceiro, custos: pgCustos, transportadoras: pgTransportadoras };
+function pgUtilizadores() {
+  if (S.eu?.perfil !== 'superadmin') return head('Utilizadores', 'Só o superadmin pode gerir utilizadores.');
+  const U = S.utilizadores;
+  if (!U) { api('/api/utilizadores').then(u => { S.utilizadores = u; if (S.page === 'utilizadores') renderPage(); }).catch(e => toast(e.message, true)); return head('Utilizadores', 'A carregar…'); }
+  return head('Utilizadores', 'Quem pode entrar no sistema e com que perfil',
+    `<button class="btn btn-primary" data-act="util-novo">${ic('plus')} Novo utilizador</button>`) + `
+  <div class="page-body">
+    <div class="toolbar">${pesquisa('util', 'Procurar nome, utilizador, email…')}<span class="grow"></span><span class="muted sm"><b>Superadmin</b>: tudo, incluindo utilizadores · <b>Utilizador</b>: trabalho do dia-a-dia</span></div>
+    <div class="table-wrap"><table class="t" data-pesq-tabela="util"><thead><tr><th>Nome</th><th>Utilizador</th><th>Email</th><th>Perfil</th><th>Estado</th><th>Último acesso</th></tr></thead><tbody>
+      ${U.map(u => `<tr class="click" data-act="util" data-id="${u.id}"><td><span class="t1">${esc(u.nome)}</span>${u.id === S.eu.id ? ' <span class="t2">(eu)</span>' : ''}${u.observacoes ? `<div class="t2">${esc(u.observacoes)}</div>` : ''}</td><td class="mono">${esc(u.utilizador)}</td><td>${esc(u.email || '')}</td>
+        <td>${badge(u.perfil_nome, u.perfil === 'superadmin' ? 'violet' : 'neutro')}</td><td>${u.activo ? badge('Activo', 'ok') : badge('Desactivado', 'neutro')}${u.mudar_senha ? '<div class="t2">vai mudar a palavra-passe</div>' : ''}</td>
+        <td class="nowrap">${u.ultimo_acesso ? esc(u.ultimo_acesso.slice(0, 16).replace('T', ' ')) : '<span class="muted">nunca</span>'}</td></tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
+}
+async function dialogoUtilizador(u) {
+  const r = await dialogo({ titulo: u ? `Editar ${esc(u.nome)}` : 'Novo utilizador', ok: 'Guardar', campos: [
+    { n: 'nome', l: 'Nome', v: u?.nome }, { n: 'utilizador', l: 'Utilizador (para entrar)', v: u?.utilizador, attr: u ? 'disabled' : 'autocomplete="off"' },
+    { n: 'email', l: 'Email', t: 'email', v: u?.email },
+    { n: 'perfil', l: 'Perfil', t: 'select', v: u?.perfil || 'utilizador', o: [['utilizador', 'Utilizador — trabalho do dia-a-dia'], ['superadmin', 'Superadmin — tudo, incluindo utilizadores']] },
+    ...(u ? [{ n: 'activo', l: 'Estado', t: 'select', v: u.activo ? '1' : '0', o: [['1', 'Activo'], ['0', 'Desactivado (não consegue entrar)']] }] : []),
+    { n: 'senha', l: u ? 'Nova palavra-passe (deixe vazio para manter)' : 'Palavra-passe inicial', t: 'password', ph: 'mínimo 8 caracteres', attr: 'autocomplete="new-password"' },
+    { n: 'observacoes', l: 'Observações', t: 'textarea', v: u?.observacoes } ] });
+  if (!r) return;
+  if (u) { r.activo = r.activo === '1'; delete r.utilizador; if (!r.senha) delete r.senha; }
+  try {
+    await (u ? api(`/api/utilizadores/${u.id}`, { method: 'PUT', body: r }) : api('/api/utilizadores', { method: 'POST', body: r }));
+    toast(u ? 'Utilizador actualizado' : 'Utilizador criado — vai pedir para mudar a palavra-passe no 1.º acesso');
+    S.utilizadores = null; renderPage();
+  } catch (e) { toast(e.message, true); }
+}
+async function mudarSenha(obrigatorio) {
+  const r = await dialogo({ titulo: obrigatorio ? 'Defina a sua palavra-passe' : 'Mudar palavra-passe', ok: 'Guardar',
+    texto: obrigatorio ? 'Está a usar uma palavra-passe temporária. Escolha uma nova para continuar.' : '',
+    campos: [{ n: 'atual', l: 'Palavra-passe actual', t: 'password', attr: 'autocomplete="current-password"' },
+      { n: 'nova', l: 'Nova palavra-passe', t: 'password', ph: 'mínimo 8 caracteres', attr: 'autocomplete="new-password"' },
+      { n: 'confirma', l: 'Repita a nova', t: 'password', attr: 'autocomplete="new-password"' }] });
+  if (!r) { if (obrigatorio) setTimeout(() => mudarSenha(true), 300); return; }
+  if (r.nova !== r.confirma) { toast('As duas palavras-passe não coincidem', true); return mudarSenha(obrigatorio); }
+  try { await api('/api/auth/senha', { method: 'POST', body: r }); S.eu.mudar_senha = false; toast('Palavra-passe actualizada'); }
+  catch (e) { toast(e.message, true); return mudarSenha(obrigatorio); }
+}
+// tema: claro | escuro | sistema (guardado por utilizador neste browser)
+const chaveTema = () => 'tema' + (S.eu ? ':' + S.eu.id : '');
+function temaEscolhido() { try { return localStorage.getItem(chaveTema()) || localStorage.getItem('tema') || 'sistema'; } catch { return 'sistema'; } }
+function aplicarTema() {
+  const t = temaEscolhido();
+  document.documentElement.dataset.theme = t === 'sistema' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t;
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => temaEscolhido() === 'sistema' && aplicarTema());
+function menuConta(btn) {
+  document.getElementById('menu-conta')?.remove();
+  const t = temaEscolhido();
+  const m = document.createElement('div'); m.id = 'menu-conta'; m.className = 'menu-conta';
+  m.innerHTML = `<div class="mc-h"><b>${esc(S.eu.nome)}</b><small>${esc(S.eu.utilizador)} · ${S.eu.perfil === 'superadmin' ? 'Superadmin' : 'Utilizador'}</small></div>
+    <div class="mc-l">Tema</div>
+    <div class="seg mc-tema">${[['light', 'Claro'], ['dark', 'Escuro'], ['sistema', 'Sistema']].map(([k, n]) => `<button data-tema="${k}" class="${t === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <button class="mc-i" data-mc="senha">${ic('settings', 'sm')} Mudar palavra-passe</button>
+    <button class="mc-i mc-sair" data-mc="sair">${ic('right', 'sm')} Sair</button>`;
+  document.body.append(m);
+  const r = btn.getBoundingClientRect();
+  m.style.left = Math.max(8, r.left) + 'px'; m.style.bottom = (innerHeight - r.top + 6) + 'px';
+  const fechar = e => { if (!m.contains(e.target) && !btn.contains(e.target)) { m.remove(); document.removeEventListener('mousedown', fechar); } };
+  setTimeout(() => document.addEventListener('mousedown', fechar));
+  m.onclick = async e => {
+    const tm = e.target.closest('[data-tema]');
+    if (tm) { try { localStorage.setItem(chaveTema(), tm.dataset.tema); localStorage.setItem('tema', tm.dataset.tema); } catch {} aplicarTema(); $$('[data-tema]', m).forEach(b => b.classList.toggle('on', b === tm)); return; }
+    const a = e.target.closest('[data-mc]'); if (!a) return;
+    m.remove();
+    if (a.dataset.mc === 'senha') mudarSenha(false);
+    if (a.dataset.mc === 'sair') { await fetch('/api/auth/logout', { method: 'POST' }); location.href = '/login.html'; }
+  };
+}
+
+const PAGES = { utilizadores: pgUtilizadores, projectos: pgProjectos, notas: pgNotas, kits: pgKits, overview: pgOverview, planeamento: pgPlaneamento, cronograma: pgCronograma, destinos: pgDestinos, camioes: pgCamioes, financeiro: pgFinanceiro, custos: pgCustos, transportadoras: pgTransportadoras };
 var AFTER_planeamento;
 const AFTER = {
   planeamento: () => AFTER_planeamento(),
@@ -1205,6 +1286,9 @@ const ACT = {
   'camiao-novo': () => drawerCamiao(null),
   custo: el => drawerCusto(S.d.custos.find(c => c.id === Number(el.dataset.id))),
   'custo-novo': () => drawerCusto(null),
+  'conta-menu': el => menuConta(el),
+  'util-novo': () => dialogoUtilizador(null),
+  util: el => dialogoUtilizador((S.utilizadores || []).find(u => u.id === Number(el.dataset.id))),
   'abrir-proj': el => { S.missao = Number(el.dataset.id); localStorage.setItem('missao', S.missao); S.sel.clear(); S.bsel.clear(); S.page = 'overview'; history.replaceState(null, '', '#overview'); load(); },
   'missao-nova': () => drawerMissao(null),
   'fact-nova': () => dialogoFactura(null),

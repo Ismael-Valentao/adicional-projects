@@ -4,13 +4,22 @@
   "description": "Controlo de distribuição de insumos: camiões subcontratados, custos, cronograma e exportação Excel",
   "main": "server.js",
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning server.js"
+    "start": "node server.js",
+    "migrar-sqlite": "node --disable-warning=ExperimentalWarning scripts/migrar_sqlite_para_mysql.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^18.0.9",
     "exceljs": "^4.4.0",
-    "express": "^4.22.3"
+    "express": "^4.22.3",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.24.6"
+  },
+  "engines": {
+    "node": ">=22.5"
   }
 }

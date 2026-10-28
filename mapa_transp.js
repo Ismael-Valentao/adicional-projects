@@ -11,8 +11,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const n2 = v => { const x = Number(v) || 0; const [i, f] = Math.abs(x).toFixed(2).split('.'); return (x < 0 ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ',' + f; };
 
 // Dados de cada transportadora: viagens, notas de débito e totais
-function dados(mid) {
-  const M = L.carregarMissao(mid);
+async function dados(mid) {
+  const M = await L.carregarMissao(mid);
   const dMap = new Map(M.destinos.map(d => [d.id, d]));
   const ids = [...new Set(M.viagens.map(v => v.transportadora_id ?? 0))];
   const lista = ids.map(tid => {
@@ -89,7 +89,7 @@ function folhaTransp(wb, t, M, titulo) {
 }
 
 async function excel(mid, tid) {
-  const { M, lista } = dados(mid);
+  const { M, lista } = await dados(mid);
   const sel = tid != null ? lista.filter(t => String(t.id) === String(tid)) : lista;
   const wb = new ExcelJS.Workbook(); wb.created = new Date();
   if (tid == null) {
@@ -112,8 +112,8 @@ async function excel(mid, tid) {
 }
 
 // Extracto imprimível de uma transportadora
-function html(mid, tid) {
-  const { M, lista } = dados(mid);
+async function html(mid, tid) {
+  const { M, lista } = await dados(mid);
   const t = lista.find(x => String(x.id) === String(tid));
   if (!t) return null;
   const T = t.tot;

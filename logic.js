@@ -28,15 +28,23 @@ function diffDias(a, b) { // a - b em dias
 }
 
 // Carrega todo o estado de uma missão e calcula derivados
-function carregarMissao(mid) {
-  const missao = db.prepare('SELECT * FROM missoes WHERE id=?').get(mid);
+async function carregarMissao(mid) {
+  // todas as consultas em paralelo (a base de dados é remota)
+  const [missao, destinos, viagens, links, custos, kits, itens, notas, linhasND] = await Promise.all([
+    db.prepare('SELECT * FROM missoes WHERE id=?').get(mid),
+    db.prepare('SELECT * FROM destinos WHERE missao_id=? ORDER BY ordem, id').all(mid),
+    db.prepare(`SELECT v.*, t.nome transportadora FROM viagens v
+      LEFT JOIN transportadoras t ON t.id=v.transportadora_id WHERE v.missao_id=? ORDER BY v.data_saida_prevista, v.id`).all(mid),
+    db.prepare(`SELECT vd.* FROM viagem_destinos vd JOIN viagens v ON v.id=vd.viagem_id
+      WHERE v.missao_id=? ORDER BY vd.ordem, vd.id`).all(mid),
+    db.prepare('SELECT * FROM custos WHERE missao_id=? ORDER BY data, id').all(mid),
+    infoKits(mid),
+    db.prepare('SELECT i.* FROM destino_itens i JOIN destinos d ON d.id=i.destino_id WHERE d.missao_id=? ORDER BY i.ordem, i.id').all(mid),
+    db.prepare(`SELECT n.*, t.nome transportadora FROM notas_debito n LEFT JOIN transportadoras t ON t.id=n.transportadora_id
+      WHERE n.missao_id=? ORDER BY n.data DESC, n.id DESC`).all(mid),
+    db.prepare('SELECT l.* FROM nd_linhas l JOIN notas_debito n ON n.id=l.nd_id WHERE n.missao_id=? ORDER BY l.ordem, l.id').all(mid),
+  ]);
   if (!missao) return null;
-  const destinos = db.prepare('SELECT * FROM destinos WHERE missao_id=? ORDER BY ordem, id').all(mid);
-  const viagens = db.prepare(`SELECT v.*, t.nome transportadora FROM viagens v
-    LEFT JOIN transportadoras t ON t.id=v.transportadora_id WHERE v.missao_id=? ORDER BY v.data_saida_prevista, v.id`).all(mid);
-  const links = db.prepare(`SELECT vd.* FROM viagem_destinos vd JOIN viagens v ON v.id=vd.viagem_id
-    WHERE v.missao_id=? ORDER BY vd.ordem, vd.id`).all(mid);
-  const custos = db.prepare(`SELECT * FROM custos WHERE missao_id=? ORDER BY data, id`).all(mid);
 
   const dMap = new Map(destinos.map(d => [d.id, Object.assign(d, { viagens: [], custo_transporte: 0, custo_outros: 0 })]));
   const vMap = new Map(viagens.map(v => [v.id, Object.assign(v, { destinos: [], custos_extra: 0 })]));
@@ -95,9 +103,7 @@ function carregarMissao(mid) {
     d.matriculas = d.viagens.map(id => vMap.get(id).matricula).filter(Boolean).join(', ');
   }
   // kits: 1 por beneficiário (baixa → Kit Baixa, sequeiro → Kit Sequeiro)
-  const kits = infoKits(mid);
   // carga por artigo (projectos sem kits): soma ao peso do destino
-  const itens = db.prepare(`SELECT i.* FROM destino_itens i JOIN destinos d ON d.id=i.destino_id WHERE d.missao_id=? ORDER BY i.ordem, i.id`).all(mid);
   for (const d of destinos) {
     d.kits_baixa = d.benef_baixa || 0; d.kits_sequeiro = d.benef_sequeiro || 0;
     d.itens = itens.filter(i => i.destino_id === d.id);
@@ -112,9 +118,6 @@ function carregarMissao(mid) {
     v.volumes = soma(ds, d => d.volumes); v.artigos = soma(ds, d => d.itens.length);
     v.peso_kg = soma(ds, d => d.peso_kg);
   }
-  const notas = db.prepare(`SELECT n.*, t.nome transportadora FROM notas_debito n LEFT JOIN transportadoras t ON t.id=n.transportadora_id
-    WHERE n.missao_id=? ORDER BY n.data DESC, n.id DESC`).all(mid);
-  const linhasND = db.prepare('SELECT l.* FROM nd_linhas l JOIN notas_debito n ON n.id=l.nd_id WHERE n.missao_id=? ORDER BY l.ordem, l.id').all(mid);
   for (const n of notas) {
     n.linhas = linhasND.filter(l => l.nd_id === n.id).map(l => ({ ...l, valor: (l.quantidade || 0) * (l.preco_unit || 0) }));
     n.valor = soma(n.linhas, l => l.valor);
@@ -127,8 +130,8 @@ function carregarMissao(mid) {
 }
 
 // Composição dos kits e peso conhecido de cada um
-function infoKits(mid) {
-  const itens = db.prepare('SELECT * FROM kit_itens WHERE missao_id=? ORDER BY kit, ordem, id').all(mid);
+async function infoKits(mid) {
+  const itens = await db.prepare('SELECT * FROM kit_itens WHERE missao_id=? ORDER BY kit, ordem, id').all(mid);
   const peso = { baixa: 0, sequeiro: 0 }, porConfirmar = { baixa: [], sequeiro: [] };
   for (const i of itens) {
     if (i.peso_kg == null) porConfirmar[i.kit]?.push(i.item);
@@ -183,8 +186,8 @@ function situacao(d, viagens, H) {
 
 function soma(arr, f) { return arr.reduce((s, x) => s + (f(x) || 0), 0); }
 
-function painel(mid) {
-  const M = carregarMissao(mid);
+async function painel(mid, M) {
+  M = M || await carregarMissao(mid);
   if (!M) return null;
   const { destinos, viagens, custos } = M;
   const ativos = destinos.filter(d => d.estado !== 'cancelado');
@@ -256,7 +259,7 @@ function painel(mid) {
       custo_transporte: transporte, custo_outros: outros, custo_total: total,
       pago, por_pagar: total - pago,
       custo_benef: benefTotal ? total / benefTotal : null,
-      orcamento: db.prepare('SELECT COALESCE(SUM(valor),0) s FROM orcamento WHERE missao_id=?').get(mid).s || M.missao.orcamento || 0,
+      orcamento: (await db.prepare('SELECT COALESCE(SUM(valor),0) s FROM orcamento WHERE missao_id=?').get(mid)).s || M.missao.orcamento || 0,
     },
     porCategoria: Object.entries(porCategoria).map(([nome, valor]) => ({ nome, valor })).filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor),
     porTransportadora: Object.values(porTransportadora).sort((a, b) => b.valor - a.valor),
@@ -269,8 +272,8 @@ function painel(mid) {
 }
 
 // Sugere agrupar destinos sem camião por distrito + data prevista (e por província/data)
-function sugestoes(mid) {
-  const M = carregarMissao(mid);
+async function sugestoes(mid) {
+  const M = await carregarMissao(mid);
   if (!M) return [];
   const livres = M.destinos.filter(d => !d.viagens.length && !['entregue', 'parcial', 'cancelado'].includes(d.estado));
   const g = {};
@@ -312,7 +315,8 @@ function receitaDe(missao, benef) {
   return null; // global: repartido mais abaixo
 }
 
-function financeiro(mid, M = carregarMissao(mid)) {
+async function financeiro(mid, M) {
+  M = M || await carregarMissao(mid);
   if (!M) return null;
   const { missao, destinos, viagens, custos, hoje: H } = M;
   const ativos = destinos.filter(d => d.estado !== 'cancelado');
@@ -320,7 +324,7 @@ function financeiro(mid, M = carregarMissao(mid)) {
   const receita = missao.receita_modo === 'por_beneficiario' ? benefTotal * (missao.receita_unit || 0) : (missao.receita_valor || 0);
 
   // orçamento por rubrica (opcional)
-  const linhas = db.prepare('SELECT * FROM orcamento WHERE missao_id=?').all(mid);
+  const linhas = await db.prepare('SELECT * FROM orcamento WHERE missao_id=?').all(mid);
   const orc = Object.fromEntries(linhas.map(l => [l.categoria, l]));
   const orcTotal = soma(linhas, l => l.valor);
 
@@ -362,10 +366,10 @@ function financeiro(mid, M = carregarMissao(mid)) {
 
 // ---------- Mapa de projectos (todas as missões) ----------
 // Execução medida em kits (projectos com kits), kg (projectos com artigos) ou nº de destinos
-function resumoProjecto(mid) {
-  const M = carregarMissao(mid);
+async function resumoProjecto(mid) {
+  const M = await carregarMissao(mid);
   if (!M) return null;
-  const F = financeiro(mid, M);
+  const F = await financeiro(mid, M);
   const ativos = M.destinos.filter(d => d.estado !== 'cancelado');
   const entregue = d => d.estado === 'entregue';
   const comKits = ativos.some(d => d.benef_total);
@@ -374,7 +378,7 @@ function resumoProjecto(mid) {
   const val = d => (unid === 'kits' ? d.benef_total || 0 : unid === 'kg' ? d.peso_itens || 0 : 1);
   const total = soma(ativos, val), feito = soma(ativos.filter(entregue), val);
   const exec = total ? feito / total : 0;
-  const facturas = db.prepare('SELECT * FROM facturas WHERE missao_id=? ORDER BY data, id').all(mid);
+  const facturas = await db.prepare('SELECT * FROM facturas WHERE missao_id=? ORDER BY data, id').all(mid);
   const validas = facturas.filter(f => f.estado !== 'anulada');
   const facturado = soma(validas, f => f.valor), recebido = soma(validas.filter(f => f.estado === 'paga'), f => f.valor);
   const executado = F.receita * exec;
@@ -397,14 +401,15 @@ function resumoProjecto(mid) {
     facturas,
   };
 }
-function mapaProjectos() {
-  return db.prepare('SELECT id FROM missoes ORDER BY id').all().map(m => resumoProjecto(m.id)).filter(Boolean);
+async function mapaProjectos() {
+  const ms = await db.prepare('SELECT id FROM missoes ORDER BY id').all();
+  return (await Promise.all(ms.map(m => resumoProjecto(m.id)))).filter(Boolean);
 }
 
-function gravarOrcamento(mid, linhas) {
+async function gravarOrcamento(mid, linhas) {
   const up = db.prepare(`INSERT INTO orcamento (missao_id, categoria, valor, notas) VALUES (?,?,?,?)
-    ON CONFLICT(missao_id, categoria) DO UPDATE SET valor=excluded.valor, notas=excluded.notas`);
-  for (const l of linhas) if (RUBRICAS[l.categoria]) up.run(mid, l.categoria, Number(l.valor) || 0, l.notas || null);
+    ON DUPLICATE KEY UPDATE valor=VALUES(valor), notas=VALUES(notas)`);
+  for (const l of linhas) if (RUBRICAS[l.categoria]) await up.run(mid, l.categoria, Number(l.valor) || 0, l.notas || null);
 }
 
 module.exports = { resumoProjecto, mapaProjectos, MOTIVOS_ND, ESTADOS_ND, infoKits, listaCarga, CATEGORIAS, RUBRICAS, ESTADOS_DESTINO, ESTADOS_VIAGEM, carregarMissao, painel, sugestoes, financeiro, gravarOrcamento, hoje };

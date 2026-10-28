@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar — Controlo de Projectos</title>
+<script>try { const t = localStorage.getItem('tema') || 'sistema'; document.documentElement.dataset.theme = t === 'sistema' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t; } catch {}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body{display:grid;place-items:center;min-height:100vh;padding:16px}
+  .login{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-3);padding:32px 30px 28px}
+  .login .brand{padding:0 0 22px}
+  .login h1{font-size:18px;margin:0 0 4px;letter-spacing:-.01em}
+  .login p{margin:0 0 20px;color:var(--text-3);font-size:13px}
+  .login form{display:flex;flex-direction:column;gap:14px}
+  .login .btn{height:38px;margin-top:4px}
+  .erro{display:none;background:var(--red-soft);border:1px solid var(--red-line);color:var(--red);border-radius:8px;padding:9px 12px;font-size:13px}
+  .rod{margin-top:18px;text-align:center;color:var(--text-3);font-size:12px}
+</style>
+</head>
+<body>
+  <main class="login">
+    <div class="brand"><div class="brand-mark"><svg class="i" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div><div><b>Distribuição</b><span>Controlo de Projectos</span></div></div>
+    <h1>Iniciar sessão</h1>
+    <p>Adicional Logistics</p>
+    <form id="f">
+      <div class="erro" id="erro"></div>
+      <label class="field"><span>Utilizador ou email</span><input class="input" name="utilizador" autocomplete="username" required autofocus></label>
+      <label class="field"><span>Palavra-passe</span><input class="input" name="senha" type="password" autocomplete="current-password" required></label>
+      <button class="btn btn-primary" type="submit">Entrar</button>
+    </form>
+    <div class="rod">Esqueceu a palavra-passe? Peça ao superadmin para a repor.</div>
+  </main>
+  <script src="login.js"></script>
+</body>
+</html>

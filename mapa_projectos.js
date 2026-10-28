@@ -14,7 +14,7 @@ const COR = { por_implementar: 'FFFFF7E0', em_curso: 'FFEFF5FF', concluido: 'FFE
 const margem = p => ({ valor: p.receita - p.custos, pct: p.receita ? (p.receita - p.custos) / p.receita : null });
 
 async function excel() {
-  const P = L.mapaProjectos();
+  const P = await L.mapaProjectos();
   const hoje = L.hoje();
   const wb = new ExcelJS.Workbook(); wb.created = new Date();
   const ws = wb.addWorksheet('Mapa de projectos');
@@ -53,8 +53,8 @@ async function excel() {
   return { buf: await wb.xlsx.writeBuffer(), hoje };
 }
 
-function html() {
-  const P = L.mapaProjectos();
+async function html() {
+  const P = await L.mapaProjectos();
   const hoje = L.hoje();
   const s = k => P.reduce((a, p) => a + (Number(p[k]) || 0), 0);
   const orc = s('receita'), gas = s('custos');

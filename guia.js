@@ -17,8 +17,8 @@ function comItens(lista, destinos) {
   return { ...lista, itens: [...lista.itens, ...m.values()] };
 }
 
-function guiaHTML(mid, vid) {
-  const M = L.carregarMissao(mid);
+async function guiaHTML(mid, vid) {
+  const M = await L.carregarMissao(mid);
   const v = M?.viagens.find(x => x.id === Number(vid));
   if (!v) return null;
   const dMap = new Map(M.destinos.map(d => [d.id, d]));
@@ -83,8 +83,8 @@ td.chk{width:40px;border:1px solid #d4d4d8}
 }
 
 // Nota de débito imprimível para enviar à transportadora
-function ndHTML(mid, id) {
-  const M = L.carregarMissao(mid);
+async function ndHTML(mid, id) {
+  const M = await L.carregarMissao(mid);
   const nd = M?.notas.find(x => x.id === Number(id));
   if (!nd) return null;
   const v = M.viagens.find(x => x.id === nd.viagem_id);
