@@ -61,6 +61,8 @@ const sum = (a, f) => a.reduce((s, x) => s + (Number(f(x)) || 0), 0);
 
 // ícones (traço 24×24, estilo Lucide)
 const P = {
+  sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  lua: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   overview: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
   board: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/>',
   calendar: '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
@@ -256,6 +258,7 @@ function render() {
         <button class="btn btn-ghost btn-block" data-act="missao">${ic('settings')} Definições do projecto</button>
         <div class="conta">
           <button class="conta-btn" data-act="conta-menu" title="Conta, tema e sair"><span class="avatar">${esc((S.eu?.nome || '?').split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase())}</span><span class="conta-n"><b>${esc(S.eu?.nome || '')}</b><small>${esc(S.eu?.perfil === 'superadmin' ? 'Superadmin' : 'Utilizador')}</small></span>${ic('chev', 'sm')}</button>
+          ${botaoTema()}
         </div>
       </div>
     </aside>
@@ -900,6 +903,14 @@ async function mudarSenha(obrigatorio) {
 // tema: claro | escuro | sistema (guardado por utilizador neste browser)
 const chaveTema = () => 'tema' + (S.eu ? ':' + S.eu.id : '');
 function temaEscolhido() { try { return localStorage.getItem(chaveTema()) || localStorage.getItem('tema') || 'sistema'; } catch { return 'sistema'; } }
+const temaEscuro = () => document.documentElement.dataset.theme === 'dark';
+const botaoTema = () => `<button class="tema-btn" data-act="tema-alternar" title="${temaEscuro() ? 'Mudar para tema claro' : 'Mudar para tema escuro'}" aria-label="Mudar tema">${ic(temaEscuro() ? 'sol' : 'lua')}</button>`;
+function alternarTema() {
+  const novo = temaEscuro() ? 'light' : 'dark';
+  try { localStorage.setItem(chaveTema(), novo); localStorage.setItem('tema', novo); } catch {}
+  aplicarTema();
+  $$('.tema-btn').forEach(b => (b.outerHTML = botaoTema()));
+}
 function aplicarTema() {
   const t = temaEscolhido();
   document.documentElement.dataset.theme = t === 'sistema' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t;
@@ -1390,6 +1401,7 @@ const ACT = {
   custo: el => drawerCusto(S.d.custos.find(c => c.id === Number(el.dataset.id))),
   'custo-novo': () => drawerCusto(null),
   'conta-menu': el => menuConta(el),
+  'tema-alternar': () => alternarTema(),
   'util-novo': () => dialogoUtilizador(null),
   util: el => dialogoUtilizador((S.utilizadores || []).find(u => u.id === Number(el.dataset.id))),
   'abrir-proj': el => { S.missao = Number(el.dataset.id); localStorage.setItem('missao', S.missao); S.sel.clear(); S.bsel.clear(); S.page = 'overview'; history.replaceState(null, '', '#overview'); load(); },
