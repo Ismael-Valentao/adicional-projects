@@ -25,7 +25,7 @@ const txt = v => (v === '' || v == null ? null : String(v).trim());
 
 // ---------- acesso: só o ecrã de login e os seus ficheiros ficam abertos ----------
 app.get('/saude', (req, res) => res.json({ ok: true }));
-app.use(A.exigirSessao(['/login.html', '/login.js', '/styles.css', '/favicon.ico', '/api/auth/login', '/saude']));
+app.use(A.exigirSessao(['/login.html', '/login.js', '/styles.css', '/favicon.ico', '/adicional-logo.svg', '/adicional-logo-branco.svg', '/adicional-logo.png', '/api/auth/login', '/saude']));
 app.use(AU.contexto);
 app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));

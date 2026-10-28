@@ -8,47 +8,55 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="adicional-logo.png">
 <link rel="stylesheet" href="styles.css">
 <style>
   :root{ --a1:#1d9bd7; --a2:#22b39a; --a3:#7cc242; }
   body{margin:0;min-height:100vh;background:var(--bg);overflow-x:hidden}
   .wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);min-height:100vh}
 
-  /* ---------- painel de marca ---------- */
-  .hero{position:relative;overflow:hidden;background:#0c0f14;color:#e9edf2;padding:44px 56px;display:flex;flex-direction:column;justify-content:space-between;isolation:isolate}
+
+  /* ---------- painel de marca: slogan + mapa ---------- */
+  .hero{position:relative;overflow:hidden;background:#0b0e13;color:#e9edf2;padding:40px 48px 34px;display:flex;flex-direction:column;isolation:isolate}
   .hero::before{content:"";position:absolute;inset:0;z-index:-2;
-    background:radial-gradient(900px 520px at 12% 0%,rgba(29,155,215,.28),transparent 60%),
-               radial-gradient(700px 520px at 100% 100%,rgba(124,194,66,.20),transparent 60%),
-               radial-gradient(600px 400px at 70% 35%,rgba(34,179,154,.14),transparent 65%)}
-  .hero::after{content:"";position:absolute;inset:0;z-index:-1;opacity:.5;
-    background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
-    background-size:44px 44px;mask-image:radial-gradient(ellipse at 40% 40%,#000 30%,transparent 75%)}
-  .h-top{display:flex;align-items:center;gap:12px}
-  .h-mark{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--a1),var(--a2) 55%,var(--a3));box-shadow:0 8px 24px -6px rgba(34,179,154,.55)}
-  .h-mark svg{width:20px;height:20px;stroke:#fff}
-  .h-top b{font-size:15px;letter-spacing:-.01em;display:block;line-height:1.15}
-  .h-top span{font-size:12px;color:#8f9aa7}
-  .h-meio{max-width:520px}
-  .h-meio h2{font-size:clamp(28px,3.2vw,40px);line-height:1.1;letter-spacing:-.03em;margin:0 0 14px;font-weight:800}
-  .h-meio h2 em{font-style:normal;background:linear-gradient(90deg,#5cc8f2,#4fd6bd 50%,#a7dd6f);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .h-meio p{color:#a7b1bd;font-size:15px;line-height:1.6;margin:0 0 26px;max-width:460px}
-  .pontos{display:grid;gap:12px}
-  .ponto{display:flex;gap:12px;align-items:flex-start}
-  .ponto i{flex:none;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
-  .ponto i svg{width:16px;height:16px;stroke:#7fd3c3}
-  .ponto b{display:block;font-size:13.5px;font-weight:600;color:#e9edf2}
-  .ponto span{font-size:12.5px;color:#8f9aa7}
-  .mapa{position:absolute;right:-70px;top:50%;transform:translateY(-50%);width:min(40%,400px);opacity:.9;z-index:-1;pointer-events:none}
-  .mapa .rota{fill:none;stroke:url(#gr);stroke-width:2;stroke-linecap:round;stroke-dasharray:4 7;opacity:.75}
-  .mapa .no{fill:#0c0f14;stroke:#4fd6bd;stroke-width:2}
-  .mapa .no.p{fill:#4fd6bd}
-  .mapa .halo{fill:#4fd6bd;opacity:.18;transform-origin:center;animation:pulso 2.6s ease-out infinite}
-  .camiao{offset-path:path("M60 420 C 120 360, 150 330, 210 300 S 300 220, 330 170 S 300 80, 250 40");animation:viagem 9s linear infinite}
+    background:radial-gradient(800px 520px at 0% 0%,rgba(29,155,215,.24),transparent 60%),
+               radial-gradient(700px 520px at 100% 100%,rgba(124,194,66,.16),transparent 60%),
+               radial-gradient(520px 420px at 72% 40%,rgba(34,179,154,.14),transparent 65%)}
+  .hero::after{content:"";position:absolute;inset:0;z-index:-1;opacity:.55;
+    background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:22px 22px;
+    mask-image:radial-gradient(ellipse at 65% 45%,#000 25%,transparent 72%)}
+  .h-top{display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;z-index:2}
+  .h-logo{height:46px;width:auto;display:block}
+  .h-app{font-size:12px;font-weight:600;color:#c9d3dc;padding:5px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);letter-spacing:.01em}
+  .h-corpo{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center;gap:10px;min-height:0}
+  .slogan{margin:0;font-size:clamp(34px,4vw,58px);line-height:1.02;letter-spacing:-.035em;font-weight:800;position:relative;z-index:2}
+  .slogan .w{display:inline-block;opacity:0;transform:translateY(22px);filter:blur(6px);animation:entra .9s cubic-bezier(.2,.8,.2,1) forwards}
+  .slogan .w:nth-of-type(1){animation-delay:.15s}.slogan .w:nth-of-type(2){animation-delay:.35s}.slogan .w:nth-of-type(3){animation-delay:.55s}.slogan .w:nth-of-type(4){animation-delay:.75s}
+  .slogan .v{background:linear-gradient(90deg,#5cc8f2 0%,#4fd6bd 30%,#a7dd6f 50%,#4fd6bd 70%,#5cc8f2 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:entra .9s cubic-bezier(.2,.8,.2,1) .35s forwards,brilho 5s linear 1.3s infinite}
+  .slogan::after{content:"";display:block;height:3px;width:0;margin-top:22px;border-radius:3px;background:linear-gradient(90deg,#1d9bd7,#22b39a,#7cc242);animation:linha 1.1s cubic-bezier(.2,.8,.2,1) 1.05s forwards}
+  @keyframes entra{to{opacity:1;transform:none;filter:none}}
+  @keyframes brilho{to{background-position:-250% 0}}
+  @keyframes linha{to{width:96px}}
+  .mapa{width:100%;height:100%;max-height:calc(100vh - 150px);overflow:visible}
+  .mapa .pais-sombra{fill:none;stroke:#22b39a;stroke-width:10;opacity:.10;filter:url(#brilho)}
+  .mapa .pais{fill:url(#gp);stroke:rgba(127,211,195,.55);stroke-width:1.2;stroke-linejoin:round;stroke-dasharray:2600;stroke-dashoffset:2600;animation:desenha 2.6s ease-out .2s forwards}
+  @keyframes desenha{to{stroke-dashoffset:0}}
+  .mapa .rota{fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .mapa .rota.base{stroke:url(#gr);stroke-width:2.2;opacity:.28}
+  .mapa .rota.fluxo{stroke:url(#gr);stroke-width:2.2;stroke-dasharray:3 11;animation:flui 1.6s linear infinite;opacity:.95}
+  @keyframes flui{to{stroke-dashoffset:-14}}
+  .mapa .cid .pt{fill:#0b0e13;stroke:#4fd6bd;stroke-width:1.8}
+  .mapa .cid.hub .pt{fill:#4fd6bd;stroke:#c9f2e9}
+  .mapa .cid .halo{fill:#4fd6bd;opacity:0;transform-box:fill-box;transform-origin:center;animation:pulso 3s ease-out infinite}
+  .mapa .cid text{font:600 10.5px Inter,system-ui,sans-serif;fill:#9aa6b3;letter-spacing:.01em}
+  .mapa .cid.hub text{fill:#e9edf2;font-size:11.5px}
+  @keyframes pulso{0%{transform:scale(.5);opacity:.45}100%{transform:scale(2.6);opacity:0}}
+  .camiao{offset-rotate:auto;animation-name:viagem;animation-timing-function:linear;animation-iteration-count:infinite;animation-direction:alternate}
+  .camiao .cx{fill:#e9edf2}.camiao .cb{fill:#4fd6bd}
+  .camiao{filter:drop-shadow(0 0 4px rgba(79,214,189,.9))}
   @keyframes viagem{from{offset-distance:0%}to{offset-distance:100%}}
-  @keyframes pulso{0%{transform:scale(.6);opacity:.35}100%{transform:scale(2.4);opacity:0}}
-  .h-rod{font-size:12px;color:#6f7a87;display:flex;flex-wrap:wrap;gap:4px 10px}
-  .h-rod span::after{content:"·";margin-left:10px;color:#3c4652}
-  .h-rod span:last-child::after{content:""}
+  .h-rod{font-size:12px;color:#6f7a87;position:relative;z-index:2}
 
   /* ---------- formulário ---------- */
   .lado{position:relative;display:grid;place-items:center;padding:40px 24px}
@@ -84,46 +92,56 @@
   @media (max-width:920px){
     .wrap{grid-template-columns:minmax(0,1fr)}
     .hero{padding:24px 22px 26px;min-height:auto}
-    .h-meio p,.pontos,.mapa,.h-rod{display:none}
-    .h-meio h2{font-size:22px;margin:18px 0 0}
+    .mapa,.h-rod{display:none}
+    .h-corpo{display:block;margin-top:18px}
+    .slogan{font-size:30px}
+    .slogan::after{margin-top:14px}
     .lado{padding:28px 20px 40px;align-items:start;justify-items:stretch}
     .cartao{width:100%;max-width:420px;margin:0 auto}
     .tema{top:auto;bottom:16px;right:16px}
   }
-  @media (prefers-reduced-motion:reduce){.camiao,.mapa .halo{animation:none}}
+  @media (prefers-reduced-motion:reduce){.camiao,.mapa .halo,.mapa .rota.fluxo,.slogan .v{animation:none}.slogan .w{animation-duration:.01s}.mapa .pais{animation:none;stroke-dashoffset:0}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <aside class="hero" aria-hidden="true">
     <div class="h-top">
-      <div class="h-mark"><svg class="i" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div>
-      <div><b>Adicional Logistics</b><span>Controlo de Projectos</span></div>
+      <img class="h-logo" src="adicional-logo-branco.svg" alt="Adicional Logistics">
+      <span class="h-app">Controlo de Projectos</span>
     </div>
 
-    <div class="h-meio">
-      <h2>Cada camião, cada destino,<br><em>cada metical</em> sob controlo.</h2>
-      <p>Planeie as entregas, acompanhe os camiões subcontratados e saiba em cada momento quanto gastou e qual é a margem de cada projecto.</p>
-      <div class="pontos">
-        <div class="ponto"><i><svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg></i><div><b>Planeamento por dia</b><span>Destinos, camiões, cargas e guias de carga</span></div></div>
-        <div class="ponto"><i><svg class="i" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></i><div><b>Orçamento, gasto e margem</b><span>Por projecto e no mapa de todos os projectos</span></div></div>
-        <div class="ponto"><i><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></i><div><b>Tudo registado</b><span>Notas de débito, exportações e auditoria completa</span></div></div>
-      </div>
+    <div class="h-corpo">
+      <h2 class="slogan"><span class="w">Adding</span> <span class="w v">value</span><br><span class="w">to your</span> <span class="w">business</span></h2>
+      <svg class="mapa" viewBox="0 0 384 620" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="gr" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#1d9bd7"/><stop offset=".55" stop-color="#22b39a"/><stop offset="1" stop-color="#7cc242"/></linearGradient>
+          <linearGradient id="gp" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#1d9bd7" stop-opacity=".16"/><stop offset="1" stop-color="#7cc242" stop-opacity=".07"/></linearGradient>
+          <filter id="brilho" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <path class="pais-sombra" d="M162.0 53.8 L187.6 50.9 L228.5 61.1 L237.4 56.5 L261.2 55.6 L273.3 44.8 L293.7 45.4 L331.0 31.4 L358.1 10.6 L363.6 26.7 L362.2 62.5 L366.4 94.0 L367.7 150.2 L373.7 167.8 L363.6 193.5 L350.3 218.4 L328.7 240.7 L259.1 271.8 L220.6 310.3 L207.5 316.9 L183.7 342.4 L169.7 350.7 L166.8 376.4 L183.0 403.6 L189.7 424.6 L190.1 435.4 L196.1 433.6 L195.1 468.8 L189.6 485.5 L197.6 491.7 L192.6 506.6 L178.3 519.4 L150.2 531.5 L109.3 551.0 L94.3 564.3 L97.2 579.4 L105.9 581.8 L103.0 600.7 L77.2 600.4 L74.3 584.6 L69.2 568.4 L66.3 555.5 L72.4 515.5 L47.2 439.4 L83.1 398.6 L92.1 372.7 L97.2 369.4 L101.1 348.3 L95.6 337.6 L97.0 310.8 L103.7 285.9 L103.6 240.4 L85.9 228.9 L69.7 226.3 L62.4 217.4 L46.6 209.8 L18.1 210.5 L12.7 171.5 L116.1 141.9 L135.7 159.2 L145.1 155.9 L158.5 165.0 L160.5 179.4 L153.3 196.1 L155.9 221.4 L178.1 243.6 L188.5 218.7 L203.3 211.1 L200.4 164.9 L186.1 138.9 L173.8 127.3 L162.0 127.8 L152.4 81.1 L162.0 53.8 Z"/>
+        <path class="pais" d="M162.0 53.8 L187.6 50.9 L228.5 61.1 L237.4 56.5 L261.2 55.6 L273.3 44.8 L293.7 45.4 L331.0 31.4 L358.1 10.6 L363.6 26.7 L362.2 62.5 L366.4 94.0 L367.7 150.2 L373.7 167.8 L363.6 193.5 L350.3 218.4 L328.7 240.7 L259.1 271.8 L220.6 310.3 L207.5 316.9 L183.7 342.4 L169.7 350.7 L166.8 376.4 L183.0 403.6 L189.7 424.6 L190.1 435.4 L196.1 433.6 L195.1 468.8 L189.6 485.5 L197.6 491.7 L192.6 506.6 L178.3 519.4 L150.2 531.5 L109.3 551.0 L94.3 564.3 L97.2 579.4 L105.9 581.8 L103.0 600.7 L77.2 600.4 L74.3 584.6 L69.2 568.4 L66.3 555.5 L72.4 515.5 L47.2 439.4 L83.1 398.6 L92.1 372.7 L97.2 369.4 L101.1 348.3 L95.6 337.6 L97.0 310.8 L103.7 285.9 L103.6 240.4 L85.9 228.9 L69.7 226.3 L62.4 217.4 L46.6 209.8 L18.1 210.5 L12.7 171.5 L116.1 141.9 L135.7 159.2 L145.1 155.9 L158.5 165.0 L160.5 179.4 L153.3 196.1 L155.9 221.4 L178.1 243.6 L188.5 218.7 L203.3 211.1 L200.4 164.9 L186.1 138.9 L173.8 127.3 L162.0 127.8 L152.4 81.1 L162.0 53.8 Z"/>
+        <path class="rota base" d="M94.2 573.0 C96.6 569.6 102.7 558.0 108.8 552.5 C114.9 547.0 121.5 545.0 130.6 539.9 C139.7 534.9 153.4 529.0 163.3 522.0 C173.2 514.9 185.9 507.4 189.9 497.5 C193.9 487.7 187.5 473.9 187.2 462.7 C186.8 451.5 189.7 441.1 187.9 430.4 C186.0 419.6 182.1 410.0 176.3 398.0 C170.5 386.0 159.1 370.0 153.1 358.5 C147.1 347.0 138.8 338.6 140.5 329.0 C142.2 319.5 155.1 309.2 163.3 301.0 C171.6 292.9 178.5 284.1 189.9 280.2 C201.3 276.3 222.9 277.3 231.5 277.7 C240.0 278.0 239.2 287.8 241.3 282.3 C243.5 276.9 239.9 258.4 244.4 245.0 C249.0 231.5 255.6 211.8 268.6 201.5 C281.6 191.2 311.9 192.6 322.4 183.2 C333.0 173.7 327.8 155.6 332.0 144.7 C336.1 133.8 341.8 124.3 347.3 117.8 C352.8 111.3 362.1 107.9 365.0 105.9"/><path class="rota base" d="M171.5 352.8 C168.4 350.7 158.3 344.5 153.1 340.5 C147.9 336.6 145.2 331.3 140.5 329.0 C135.8 326.8 129.3 333.7 125.2 326.9 C121.0 320.1 116.4 300.5 115.6 288.4 C114.9 276.3 118.5 265.6 120.7 254.3 C122.9 243.0 127.5 226.2 128.9 220.5"/><path class="rota base" d="M322.4 183.2 C316.9 182.2 301.1 178.7 289.4 177.1 C277.6 175.4 261.9 174.4 251.9 173.5 C241.9 172.6 236.8 176.8 229.4 171.7 C222.0 166.6 215.0 151.9 207.6 142.9 C200.2 134.0 188.9 122.3 185.1 118.1"/>
+        <path class="rota fluxo" d="M94.2 573.0 C96.6 569.6 102.7 558.0 108.8 552.5 C114.9 547.0 121.5 545.0 130.6 539.9 C139.7 534.9 153.4 529.0 163.3 522.0 C173.2 514.9 185.9 507.4 189.9 497.5 C193.9 487.7 187.5 473.9 187.2 462.7 C186.8 451.5 189.7 441.1 187.9 430.4 C186.0 419.6 182.1 410.0 176.3 398.0 C170.5 386.0 159.1 370.0 153.1 358.5 C147.1 347.0 138.8 338.6 140.5 329.0 C142.2 319.5 155.1 309.2 163.3 301.0 C171.6 292.9 178.5 284.1 189.9 280.2 C201.3 276.3 222.9 277.3 231.5 277.7 C240.0 278.0 239.2 287.8 241.3 282.3 C243.5 276.9 239.9 258.4 244.4 245.0 C249.0 231.5 255.6 211.8 268.6 201.5 C281.6 191.2 311.9 192.6 322.4 183.2 C333.0 173.7 327.8 155.6 332.0 144.7 C336.1 133.8 341.8 124.3 347.3 117.8 C352.8 111.3 362.1 107.9 365.0 105.9"/><path class="rota fluxo" d="M171.5 352.8 C168.4 350.7 158.3 344.5 153.1 340.5 C147.9 336.6 145.2 331.3 140.5 329.0 C135.8 326.8 129.3 333.7 125.2 326.9 C121.0 320.1 116.4 300.5 115.6 288.4 C114.9 276.3 118.5 265.6 120.7 254.3 C122.9 243.0 127.5 226.2 128.9 220.5"/><path class="rota fluxo" d="M322.4 183.2 C316.9 182.2 301.1 178.7 289.4 177.1 C277.6 175.4 261.9 174.4 251.9 173.5 C241.9 172.6 236.8 176.8 229.4 171.7 C222.0 166.6 215.0 151.9 207.6 142.9 C200.2 134.0 188.9 122.3 185.1 118.1"/>
+        <g class="cid hub"><circle class="halo" cx="94.2" cy="573" r="9" style="animation-delay:0.00s"/><circle class="pt" cx="94.2" cy="573" r="4.5"/><text x="84.2" y="577" text-anchor="end">Maputo</text></g>
+        <g class="cid"><circle class="halo" cx="130.6" cy="539.9" r="6" style="animation-delay:0.37s"/><circle class="pt" cx="130.6" cy="539.9" r="3"/><text x="140.6" y="547.9" text-anchor="start">Xai-Xai</text></g>
+        <g class="cid"><circle class="halo" cx="189.9" cy="497.5" r="6" style="animation-delay:0.74s"/><circle class="pt" cx="189.9" cy="497.5" r="3"/><text x="199.9" y="501.5" text-anchor="start">Inhambane</text></g>
+        <g class="cid"><circle class="halo" cx="187.9" cy="430.4" r="6" style="animation-delay:1.11s"/><circle class="pt" cx="187.9" cy="430.4" r="3"/><text x="197.9" y="434.4" text-anchor="start">Vilankulo</text></g>
+        <g class="cid"><circle class="halo" cx="171.5" cy="352.8" r="6" style="animation-delay:1.48s"/><circle class="pt" cx="171.5" cy="352.8" r="3"/><text x="181.5" y="356.8" text-anchor="start">Beira</text></g>
+        <g class="cid"><circle class="halo" cx="125.2" cy="326.9" r="6" style="animation-delay:1.85s"/><circle class="pt" cx="125.2" cy="326.9" r="3"/><text x="115.2" y="330.9" text-anchor="end">Chimoio</text></g>
+        <g class="cid"><circle class="halo" cx="128.9" cy="220.5" r="6" style="animation-delay:2.22s"/><circle class="pt" cx="128.9" cy="220.5" r="3"/><text x="118.9" y="224.5" text-anchor="end">Tete</text></g>
+        <g class="cid"><circle class="halo" cx="241.3" cy="282.3" r="6" style="animation-delay:2.59s"/><circle class="pt" cx="241.3" cy="282.3" r="3"/><text x="251.3" y="287.3" text-anchor="start">Quelimane</text></g>
+        <g class="cid"><circle class="halo" cx="322.4" cy="183.2" r="6" style="animation-delay:2.96s"/><circle class="pt" cx="322.4" cy="183.2" r="3"/><text x="312.4" y="177.2" text-anchor="end">Nampula</text></g>
+        <g class="cid"><circle class="halo" cx="185.1" cy="118.1" r="6" style="animation-delay:3.33s"/><circle class="pt" cx="185.1" cy="118.1" r="3"/><text x="175.1" y="122.1" text-anchor="end">Lichinga</text></g>
+        <g class="cid"><circle class="halo" cx="365" cy="105.9" r="6" style="animation-delay:3.70s"/><circle class="pt" cx="365" cy="105.9" r="3"/><text x="355" y="97.9" text-anchor="end">Pemba</text></g>
+        <g class="camiao" style="offset-path:path('M94.2 573.0 C96.6 569.6 102.7 558.0 108.8 552.5 C114.9 547.0 121.5 545.0 130.6 539.9 C139.7 534.9 153.4 529.0 163.3 522.0 C173.2 514.9 185.9 507.4 189.9 497.5 C193.9 487.7 187.5 473.9 187.2 462.7 C186.8 451.5 189.7 441.1 187.9 430.4 C186.0 419.6 182.1 410.0 176.3 398.0 C170.5 386.0 159.1 370.0 153.1 358.5 C147.1 347.0 138.8 338.6 140.5 329.0 C142.2 319.5 155.1 309.2 163.3 301.0 C171.6 292.9 178.5 284.1 189.9 280.2 C201.3 276.3 222.9 277.3 231.5 277.7 C240.0 278.0 239.2 287.8 241.3 282.3 C243.5 276.9 239.9 258.4 244.4 245.0 C249.0 231.5 255.6 211.8 268.6 201.5 C281.6 191.2 311.9 192.6 322.4 183.2 C333.0 173.7 327.8 155.6 332.0 144.7 C336.1 133.8 341.8 124.3 347.3 117.8 C352.8 111.3 362.1 107.9 365.0 105.9');animation-duration:34s;animation-delay:-0s"><rect x="-7" y="-4.5" width="11" height="9" rx="2" class="cx"/><rect x="4" y="-3.5" width="5" height="7" rx="1.6" class="cb"/></g>
+        <g class="camiao" style="offset-path:path('M94.2 573.0 C96.6 569.6 102.7 558.0 108.8 552.5 C114.9 547.0 121.5 545.0 130.6 539.9 C139.7 534.9 153.4 529.0 163.3 522.0 C173.2 514.9 185.9 507.4 189.9 497.5 C193.9 487.7 187.5 473.9 187.2 462.7 C186.8 451.5 189.7 441.1 187.9 430.4 C186.0 419.6 182.1 410.0 176.3 398.0 C170.5 386.0 159.1 370.0 153.1 358.5 C147.1 347.0 138.8 338.6 140.5 329.0 C142.2 319.5 155.1 309.2 163.3 301.0 C171.6 292.9 178.5 284.1 189.9 280.2 C201.3 276.3 222.9 277.3 231.5 277.7 C240.0 278.0 239.2 287.8 241.3 282.3 C243.5 276.9 239.9 258.4 244.4 245.0 C249.0 231.5 255.6 211.8 268.6 201.5 C281.6 191.2 311.9 192.6 322.4 183.2 C333.0 173.7 327.8 155.6 332.0 144.7 C336.1 133.8 341.8 124.3 347.3 117.8 C352.8 111.3 362.1 107.9 365.0 105.9');animation-duration:34s;animation-delay:-17s"><rect x="-7" y="-4.5" width="11" height="9" rx="2" class="cx"/><rect x="4" y="-3.5" width="5" height="7" rx="1.6" class="cb"/></g>
+        <g class="camiao" style="offset-path:path('M171.5 352.8 C168.4 350.7 158.3 344.5 153.1 340.5 C147.9 336.6 145.2 331.3 140.5 329.0 C135.8 326.8 129.3 333.7 125.2 326.9 C121.0 320.1 116.4 300.5 115.6 288.4 C114.9 276.3 118.5 265.6 120.7 254.3 C122.9 243.0 127.5 226.2 128.9 220.5');animation-duration:14s;animation-delay:-4s"><rect x="-7" y="-4.5" width="11" height="9" rx="2" class="cx"/><rect x="4" y="-3.5" width="5" height="7" rx="1.6" class="cb"/></g>
+        <g class="camiao" style="offset-path:path('M322.4 183.2 C316.9 182.2 301.1 178.7 289.4 177.1 C277.6 175.4 261.9 174.4 251.9 173.5 C241.9 172.6 236.8 176.8 229.4 171.7 C222.0 166.6 215.0 151.9 207.6 142.9 C200.2 134.0 188.9 122.3 185.1 118.1');animation-duration:12s;animation-delay:-7s"><rect x="-7" y="-4.5" width="11" height="9" rx="2" class="cx"/><rect x="4" y="-3.5" width="5" height="7" rx="1.6" class="cb"/></g>
+      </svg>
     </div>
 
-    <svg class="mapa" viewBox="0 0 400 460">
-      <defs><linearGradient id="gr" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#1d9bd7"/><stop offset=".5" stop-color="#22b39a"/><stop offset="1" stop-color="#7cc242"/></linearGradient></defs>
-      <path class="rota" d="M60 420 C 120 360, 150 330, 210 300 S 300 220, 330 170 S 300 80, 250 40"/>
-      <path class="rota" d="M210 300 C 170 250, 120 230, 90 180"/>
-      <path class="rota" d="M330 170 C 360 150, 370 120, 380 90"/>
-      <circle class="halo" cx="60" cy="420" r="10"/><circle class="no p" cx="60" cy="420" r="6"/>
-      <circle class="no" cx="210" cy="300" r="5"/><circle class="no" cx="90" cy="180" r="5"/>
-      <circle class="no" cx="330" cy="170" r="5"/><circle class="no" cx="380" cy="90" r="5"/>
-      <circle class="halo" cx="250" cy="40" r="10" style="animation-delay:1.3s"/><circle class="no p" cx="250" cy="40" r="6"/>
-      <g class="camiao"><rect x="-9" y="-6" width="18" height="12" rx="3" fill="#e9edf2"/><rect x="5" y="-4" width="6" height="8" rx="2" fill="#4fd6bd"/></g>
-    </svg>
-
-    <div class="h-rod"><span>Maputo</span><span>Gaza</span><span>Inhambane</span><span>Sofala</span><span>Zambézia</span><span>Manica</span><span>Tete</span><span>Niassa</span><span>Nampula</span><span>Cabo Delgado</span></div>
+    <div class="h-rod">Moçambique · 10 províncias · armazéns e distribuição de ponta a ponta</div>
   </aside>
 
   <main class="lado">
