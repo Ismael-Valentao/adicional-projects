@@ -1,0 +1,16 @@
+{
+  "name": "distribuicao-insumos",
+  "version": "1.0.0",
+  "description": "Controlo de distribuição de insumos: camiões subcontratados, custos, cronograma e exportação Excel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "express": "^4.22.3"
+  }
+}
